@@ -1,0 +1,13 @@
+uni.addInterceptor({
+  returnValue (res) {
+    if (!(!!res && (typeof res === "object" || typeof res === "function") && typeof res.then === "function")) {
+      return res;
+    }
+    return new Promise((resolve, reject) => {
+      if (!res) {
+        return resolve(res) 
+      }
+      res.then((res: [unknown, unknown]) => res[0] ? reject(res[0]) : resolve(res[1]));
+    });
+  },
+});

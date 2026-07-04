@@ -1,0 +1,2 @@
+fastlio2:livox_ros_driver2:movebase:ros_map_edit:tool:velocity_smoother_ema
+-DCATKIN_WHITELIST_PACKAGES=fastlio -DCATKIN_DEVEL_PREFIX=/home/unitree/tang/WK/G1Nav2D/devel -DCMAKE_INSTALL_PREFIX=/home/unitree/tang/WK/G1Nav2D/install -G Unix Makefiles

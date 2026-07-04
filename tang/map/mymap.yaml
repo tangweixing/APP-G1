@@ -1,0 +1,7 @@
+image: /home/unitree/tang/map/mymap.pgm
+resolution: 0.050000
+origin: [-14.400000, -8.400000, nan]
+negate: 0
+occupied_thresh: 0.65
+free_thresh: 0.196
+

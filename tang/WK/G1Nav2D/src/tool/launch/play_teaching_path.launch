@@ -1,0 +1,7 @@
+<launch>
+  <!-- 启动 path_streamer 节点 -->
+  <node pkg="tool" type="play_teaching_path.py" name="play_teaching_path" output="screen"  args="">
+    <!-- 通过参数传入路径文件地址 -->
+    <param name="path_file" value="$(find tool)/path/teaching_paths.txt" />
+  </node>
+</launch>

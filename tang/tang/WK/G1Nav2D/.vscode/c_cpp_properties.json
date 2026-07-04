@@ -1,0 +1,24 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/nvidia/Go2Nav2D/devel/include/**",
+        "/opt/ros/melodic/include/**",
+        "/home/nvidia/Go2Nav2D/src/Go2Nav2D-main/global_planner_3d/include/**",
+        "/home/nvidia/Go2Nav2D/src/Go2Nav2D-main/rover_gpr/include/**",
+        "/home/nvidia/Go2Nav2D/src/scout_simulator/scout_gazebo_sim/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

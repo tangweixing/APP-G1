@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GO2机器人控制面板</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .config-panel {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .config-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .config-label {
+            width: 120px;
+            font-weight: bold;
+        }
+        .config-input {
+            flex: 1;
+            min-width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .control-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .control-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+        .connect-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .disconnect-btn {
+            background-color: #f44336;
+            color: white;
+        }
+        .connection-status {
+            padding: 8px;
+            border-radius: 4px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .disconnected {
+            background-color: #f44336;
+            color: white;
+        }
+        .control-section {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #444;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #eee;
+        }
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .action-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .gait-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        .mode-btn {
+            background-color: #9C27B0;
+            color: white;
+        }
+        .advanced-btn {
+            background-color: #FF5722;
+            color: white;
+        }
+        .flip-btn {
+            background-color: #F44336;
+            color: white;
+        }
+        .dance-btn {
+            background-color: #FF9800;
+            color: white;
+        }
+        .move-control {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .move-axis {
+            display: flex;
+            align-items: center;
+        }
+        .move-label {
+            width: 80px;
+            font-weight: bold;
+        }
+        .move-slider {
+            flex: 1;
+        }
+        .move-value {
+            width: 50px;
+            text-align: center;
+        }
+        .active-control {
+            box-shadow: 0 0 0 3px #FFC107;
+            font-weight: bold;
+        }
+        .status {
+            margin-top: 25px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fff;
+            min-height: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .category-title {
+            grid-column: 1 / -1;
+            font-weight: bold;
+            font-size: 16px;
+            margin-top: 10px;
+            color: #555;
+            border-bottom: 1px dashed #ddd;
+            padding-bottom: 5px;
+        }
+        /* 新增的原始指令输入框样式 */
+        .raw-command-section {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .raw-command-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+        .execute-btn {
+            background-color: #607D8B;
+            color: white;
+        }
+        /* 新增的连接类型选择样式 */
+        .connection-type-selector {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .connection-type-label {
+            width: 120px;
+            font-weight: bold;
+        }
+        .connection-type-option {
+            margin-right: 15px;
+        }
+        .connection-type-option input {
+            margin-right: 5px;
+        }
+        .dog-ip-input {
+            /* 移除 display: none */
+            flex: 1;
+            min-width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>GO2机器人控制面板</h1>
+    
+    <!-- 服务器配置面板 -->
+    <div class="config-panel">
+        <div class="section-title">服务器连接</div>
+        
+        <!-- 新增的连接类型选择 -->
+        <div class="connection-type-selector">
+            <div class="connection-type-label">连接类型:</div>
+            <div class="connection-type-option">
+                <input type="radio" id="ap-connection" name="connection-type" value="ap" checked onchange="toggleConnectionType()">
+                <label for="ap-connection">AP连接</label>
+            </div>
+            <div class="connection-type-option">
+                <input type="radio" id="sta-connection" name="connection-type" value="sta" onchange="toggleConnectionType()">
+                <label for="sta-connection">STA连接</label>
+            </div>
+        </div>
+        
+        <!-- 机器狗IP输入框 (默认隐藏) -->
+        <div class="config-row" id="dog-ip-row">
+            <div class="config-label">机器狗IP:</div>
+            <input type="text" id="dog-ip" class="dog-ip-input" >
+        </div>
+        
+        <div class="config-row">
+            <div class="config-label">API地址:</div>
+            <input type="text" id="api-url" class="config-input" placeholder="http://192.168.1.100:5000">
+            <button class="control-btn connect-btn" onclick="connectDog()">连接</button>
+            <button class="control-btn disconnect-btn" onclick="disconnectDog()">断开</button>
+            <div id="connection-status" class="connection-status disconnected">未连接</div>
+        </div>
+    </div>
+    
+    <!-- 移动控制区 -->
+    <div class="control-section">
+        <div class="section-title">移动控制</div>
+        <div class="move-control">
+            <div class="move-axis">
+                <div class="move-label">X轴(前后):</div>
+                <input type="range" id="x-axis" class="move-slider" min="-1" max="1" step="0.1" value="0" oninput="updateMoveValue('x')">
+                <div id="x-value" class="move-value">0</div>
+            </div>
+            <div class="move-axis">
+                <div class="move-label">Y轴(左右):</div>
+                <input type="range" id="y-axis" class="move-slider" min="-1" max="1" step="0.1" value="0" oninput="updateMoveValue('y')">
+                <div id="y-value" class="move-value">0</div>
+            </div>
+            <div class="move-axis">
+                <div class="move-label">Z轴(旋转):</div>
+                <input type="range" id="z-axis" class="move-slider" min="-1" max="1" step="0.1" value="0" oninput="updateMoveValue('z')">
+                <div id="z-value" class="move-value">0</div>
+            </div>
+            <button class="control-btn" onclick="sendMoveCommand()">发送移动指令</button>
+            <button class="control-btn" onclick="stopMove()">停止移动</button>
+        </div>
+    </div>
+    
+    <!-- 身体关节控制区 -->
+    <div class="control-section">
+        <div class="section-title">身体关节控制</div>
+        <div class="move-control">
+            <div class="move-axis">
+                <div class="move-label">X轴(滚转角):</div>
+                <input type="range" id="euler-x" class="move-slider" min="-1" max="1" step="0.1" value="0" oninput="updateEulerValue('x')">
+                <div id="euler-x-value" class="move-value">0</div>
+            </div>
+            <div class="move-axis">
+                <div class="move-label">Y轴(俯仰角):</div>
+                <input type="range" id="euler-y" class="move-slider" min="-1" max="1" step="0.1"  value="0" oninput="updateEulerValue('y')">
+                <div id="euler-y-value" class="move-value">0</div>
+            </div>
+            <div class="move-axis">
+                <div class="move-label">Z轴(偏航角):</div>
+                <input type="range" id="euler-z" class="move-slider" min="-1" max="1" step="0.1" value="0" oninput="updateEulerValue('z')">
+                <div id="euler-z-value" class="move-value">0</div>
+            </div>
+            <button class="control-btn" onclick="sendEulerCommand()">发送关节指令</button>
+            <button class="control-btn" onclick="resetEuler()">重置关节</button>
+        </div>
+    </div>
+    
+    <!-- 模式控制区 -->
+    <div class="control-section">
+        <div class="section-title">模式切换</div>
+        <div class="control-panel">
+            <button class="control-btn mode-btn" id="normal-mode" onclick="switchMotion('normal')">普通模式</button>
+            <button class="control-btn mode-btn" id="ai-mode" onclick="switchMotion('ai')">AI模式</button>
+            <button class="control-btn advanced-btn" id="advanced-mode" onclick="switchMotion('advanced')">高级模式</button>
+        </div>
+    </div>
+    
+    <!-- 动作控制区 -->
+    <div class="control-section">
+        <div class="section-title">动作控制</div>
+        <div class="control-panel">
+            <div class="category-title">基本动作</div>
+            <button class="control-btn action-btn" onclick="sendAction(1001)">阻尼模式</button>
+            <button class="control-btn action-btn" onclick="sendAction(1002)">平衡站立</button>
+            <button class="control-btn action-btn" onclick="sendAction(1003)">停止移动</button>
+            <button class="control-btn action-btn" onclick="sendAction(1004)">站立起身</button>
+            <button class="control-btn action-btn" onclick="sendAction(1005)">站立下蹲</button>
+            <button class="control-btn action-btn" onclick="sendAction(1006)">恢复站立</button>
+            <button class="control-btn action-btn" onclick="sendAction(1009)">坐下</button>
+            <button class="control-btn action-btn" onclick="sendAction(1010)">从坐姿站起</button>
+
+            <div class="category-title">步态控制</div>
+            <button class="control-btn gait-btn" onclick="sendAction(1061)">经典步态</button>
+            <button class="control-btn gait-btn" onclick="sendAction(1062)">跑步步态</button>
+            <button class="control-btn gait-btn" onclick="sendAction(1063)">常规步态</button>
+            <button class="control-btn gait-btn" onclick="sendAction(2049)">灵动步态</button>
+
+            <div class="category-title">互动动作</div>
+            <button class="control-btn action-btn" onclick="sendAction(1016)">打招呼</button>
+            <button class="control-btn action-btn" onclick="sendAction(1017)">伸展动作</button>
+            <button class="control-btn action-btn" onclick="sendAction(1036)">手指比心</button>
+            <button class="control-btn flip-btn" onclick="sendAction(1031)">前跳</button>
+            <button class="control-btn flip-btn" onclick="sendAction(1032)">前扑</button>
+            <button class="control-btn action-btn" onclick="sendAction(1029)">拜年</button>
+
+            <div class="category-title">舞蹈动作</div>
+            <button class="control-btn dance-btn" onclick="sendAction(1022)">舞蹈动作1</button>
+            <button class="control-btn dance-btn" onclick="sendAction(1023)">舞蹈动作2</button>
+
+            <div class="category-title">翻转动作</div>
+            <button class="control-btn flip-btn" onclick="sendAction(1030)">前空翻</button>
+            <button class="control-btn flip-btn" onclick="sendAction(2041)">左侧翻</button>
+            <button class="control-btn flip-btn" onclick="sendAction(2043)">后空翻</button>
+
+            <div class="category-title">高难度动作</div>
+            <button class="control-btn action-btn" onclick="sendAction(2051)">交叉步</button>
+            <button class="control-btn action-btn" onclick="sendAction(2044)">倒立</button>
+            <button class="control-btn action-btn" onclick="sendAction(2050)">后腿站立</button>
+        </div>
+    </div>
+    
+    <div class="status" id="status">
+▶ 系统就绪，等待指令...
+    </div>
+    
+    <script>
+        // 配置和状态
+        let config = {
+            apiUrl: localStorage.getItem('go2_api_url') || 'http://127.0.0.1:5000',
+            connected: false,
+            connectionType: localStorage.getItem('go2_connection_type') || 'ap',
+            dogIp: localStorage.getItem('go2_dog_ip') || ''
+        };
+        
+        // 动作映射表（仅用于显示）
+        const ACTION_MAP = {
+            1001: "阻尼模式",
+            1002: "平衡站立",
+            1003: "停止移动",
+            1004: "站立起身",
+            1005: "站立下蹲",
+            1006: "恢复站立",
+            1009: "坐下",
+            1010: "从坐姿站起",
+            1016: "打招呼",
+            1017: "伸展动作",
+            1022: "舞蹈动作1",
+            1023: "舞蹈动作2",
+            1030: "前空翻",
+            2041: "左侧翻",
+            2043: "后空翻",
+            1031: "前跳",
+            1032: "前扑",
+            1036: "手指比心",
+            1061: "经典步态",
+            1062: "跑步步态",
+            1063: "常规步态",
+            2049: "灵动步态",
+            2044: "倒立",
+            2050: "后腿站立",
+            2051: "交叉步",
+            1029: "拜年"
+        };
+        
+        // 步态映射表（仅用于显示）
+        const GAIT_MAP = {
+            1061: "经典步态",
+            1062: "跑步步态",
+            1063: "常规步态",
+            2049: "灵动步态"
+        };
+        
+        // 修正后的模式映射表（确保与后端一致）
+        const MODE_MAP = {
+            "normal": "普通模式", 
+            "ai": "AI模式",
+            "advanced": "高级模式"
+        };
+        
+        // 初始化页面
+        function initPage() {
+            document.getElementById('api-url').value = config.apiUrl;
+            document.getElementById('dog-ip').value = config.dogIp;
+            
+            // 设置连接类型单选按钮
+            if (config.connectionType === 'ap') {
+                document.getElementById('ap-connection').checked = true;
+            } else {
+                document.getElementById('sta-connection').checked = true;
+            }
+            
+            // 根据连接类型显示/隐藏IP输入框
+            toggleConnectionType();
+            updateConnectionStatus();
+        }
+        
+        // 切换连接类型显示
+        function toggleConnectionType() {
+            const connectionType = document.querySelector('input[name="connection-type"]:checked').value;
+            const dogIpRow = document.getElementById('dog-ip-row');
+            
+            if (connectionType === 'sta') {
+                dogIpRow.style.display = 'flex';
+            } else {
+                dogIpRow.style.display = 'none';
+            }
+        }
+        
+        // 更新连接状态显示
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('connection-status');
+            if (config.connected) {
+                statusElement.textContent = "已连接";
+                statusElement.className = "connection-status connected";
+            } else {
+                statusElement.textContent = "未连接";
+                statusElement.className = "connection-status disconnected";
+            }
+        }
+        
+        // 连接机器人
+        async function connectDog() {
+            const apiUrl = document.getElementById('api-url').value.trim();
+            if (!apiUrl) {
+                updateStatus("❌ 请输入有效的API地址");
+                return;
+            }
+            
+            config.apiUrl = apiUrl;
+            localStorage.setItem('go2_api_url', apiUrl);
+            
+            // 获取连接类型和机器狗IP
+            const connectionType = document.querySelector('input[name="connection-type"]:checked').value;
+            config.connectionType = connectionType;
+            localStorage.setItem('go2_connection_type', connectionType);
+            
+            let dogIp = '';
+            if (connectionType === 'sta') {
+                
+                dogIp = document.getElementById('dog-ip').value.trim();
+                if (!dogIp) {
+                    updateStatus("❌ 请输入机器狗IP地址");
+                    return;
+                }
+                config.dogIp = dogIp;
+                localStorage.setItem('go2_dog_ip', dogIp);
+            }
+            
+            try {
+                updateStatus("🔄 正在连接机器人...");
+                
+                // 构建请求体
+                const requestBody = {
+                    robot_ip:""
+                };
+                
+                // 如果是STA模式，添加机器狗IP
+                if (connectionType === 'sta') {
+                    requestBody.robot_ip = dogIp;
+                }
+                
+                const response = await fetch(`${config.apiUrl}/api/connect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.status === "success") {
+                    config.connected = true;
+                    updateStatus(`✅ ${data.message}`);
+                } else {
+                    updateStatus(`❌ 连接失败: ${data.message || response.status}`);
+                }
+            } catch (error) {
+                updateStatus(`⚠️ 连接出错: ${error.message}`);
+            } finally {
+                updateConnectionStatus();
+            }
+        }
+        
+        // 断开机器人连接
+        async function disconnectDog() {
+            try {
+                updateStatus("🔄 正在断开连接...");
+                const response = await fetch(`${config.apiUrl}/api/disconnect`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.status === "success") {
+                    config.connected = false;
+                    updateStatus(`✅ ${data.message}`);
+                } else {
+                    updateStatus(`❌ 断开连接失败: ${data.message || response.status}`);
+                }
+            } catch (error) {
+                updateStatus(`⚠️ 断开连接出错: ${error.message}`);
+            } finally {
+                updateConnectionStatus();
+            }
+        }
+        
+        // 发送动作指令（现在只传递机器码）
+        async function sendAction(actionCode) {
+            if (!checkConnection()) return;
+            
+            try {
+                updateStatus(`🔄 正在发送动作指令: ${ACTION_MAP[actionCode] || actionCode}`);
+                const response = await fetch(`${config.apiUrl}/api/action`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action_code: actionCode
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.status === "success") {
+                    updateStatus(`✅ 动作执行成功: ${data.message}`);
+                } else {
+                    updateStatus(`❌ 动作执行失败: ${data.message || response.status}`);
+                }
+            } catch (error) {
+                updateStatus(`⚠️ 发送动作指令出错: ${error.message}`);
+            }
+        }
+        
+        // 切换模式（修正参数传递）
+        async function switchMotion(motion) {
+            if (!checkConnection()) return;
+            
+            try {
+                updateStatus(`🔄 正在切换模式: ${MODE_MAP[motion] || motion}`);
+                const response = await fetch(`${config.apiUrl}/api/switchMotion`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        motion: motion  // 直接使用参数值，确保与后端一致
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.status === "success") {
+                    updateStatus(`✅ 模式切换成功: ${data.message}`);
+                    // 更新所有模式按钮状态
+                    document.getElementById('normal-mode').classList.toggle('active-control', motion === 'normal');
+                    document.getElementById('ai-mode').classList.toggle('active-control', motion === 'ai');
+                    document.getElementById('advanced-mode').classList.toggle('active-control', motion === 'advanced');
+                } else {
+                    updateStatus(`❌ 模式切换失败: ${data.message || response.status}`);
+                }
+            } catch (error) {
+                updateStatus(`⚠️ 切换模式出错: ${error.message}`);
+            }
+        }
+        
+        // 更新移动滑块值显示
+        function updateMoveValue(axis) {
+            const value = document.getElementById(`${axis}-axis`).value;
+            document.getElementById(`${axis}-value`).textContent = value;
+        }
+        
+        // 发送移动指令
+        async function sendMoveCommand() {
+            if (!checkConnection()) return;
+            
+            const x = parseFloat(document.getElementById('x-axis').value);
+            const y = parseFloat(document.getElementById('y-axis').value);
+            const z = parseFloat(document.getElementById('z-axis').value);
+            
+            try {
+                updateStatus(`🔄 正在发送移动指令: X=${x}, Y=${y}, Z=${z}`);
+                const response = await fetch(`${config.apiUrl}/api/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        x: x,
+                        y: y,
+                        z: z
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.status === "success") {
+                    updateStatus(`✅ 移动指令执行成功: ${data.message}`);
+                } else {
+                    updateStatus(`❌ 移动指令执行失败: ${data.message || response.status}`);
+                }
+            } catch (error) {
+                updateStatus(`⚠️ 发送移动指令出错: ${error.message}`);
+            }
+        }
+        
+        // 停止移动
+        async function stopMove() {
+            if (!checkConnection()) return;
+            
+            try {
+                updateStatus("🔄 正在发送停止移动指令...");
+                const response = await fetch(`${config.apiUrl}/api/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        x: 0,
+                        y: 0,
+                        z: 0
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.status === "success") {
+                    // 重置滑块
+                    document.getElementById('x-axis').value = 0;
+                    document.getElementById('y-axis').value = 0;
+                    document.getElementById('z-axis').value = 0;
+                    document.getElementById('x-value').textContent = '0';
+                    document.getElementById('y-value').textContent = '0';
+                    document.getElementById('z-value').textContent = '0';
+                    
+                    updateStatus(`✅ 停止移动成功: ${data.message}`);
+                } else {
+                    updateStatus(`❌ 停止移动失败: ${data.message || response.status}`);
+                }
+            } catch (error) {
+                updateStatus(`⚠️ 停止移动出错: ${error.message}`);
+            }
+        }
+        
+        // 更新关节滑块值显示
+        function updateEulerValue(axis) {
+            const value = document.getElementById(`euler-${axis}`).value;
+            document.getElementById(`euler-${axis}-value`).textContent = value;
+        }
+        
+        // 发送关节控制指令
+        async function sendEulerCommand() {
+            if (!checkConnection()) return;
+            
+            const x = parseFloat(document.getElementById('euler-x').value);
+            const y = parseFloat(document.getElementById('euler-y').value);
+            const z = parseFloat(document.getElementById('euler-z').value);
+            
+            try {
+                updateStatus(`🔄 正在发送关节指令: X=${x}, Y=${y}, Z=${z}`);
+                const response = await fetch(`${config.apiUrl}/api/euler`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        x: x,
+                        y: y,
+                        z: z
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok && data.status === "success") {
+                    updateStatus(`✅ 关节指令执行成功: ${data.message}`);
+                } else {
+                    updateStatus(`❌ 关节指令执行失败: ${data.message || response.status}`);
+                }
+            } catch (error) {
+                updateStatus(`⚠️ 发送关节指令出错: ${error.message}`);
+            }
+        }
+        
+        // 重置关节位置
+        function resetEuler() {
+            document.getElementById('euler-x').value = 0;
+            document.getElementById('euler-y').value = 0;
+            document.getElementById('euler-z').value = 0;
+            document.getElementById('euler-x-value').textContent = '0';
+            document.getElementById('euler-y-value').textContent = '0';
+            document.getElementById('euler-z-value').textContent = '0';
+            sendEulerCommand();
+        }
+        
+        // 检查连接状态
+        function checkConnection() {
+            if (!config.connected) {
+                updateStatus("⚠️ 请先连接机器人");
+                return false;
+            }
+            return true;
+        }
+        
+        // 更新状态显示
+        function updateStatus(message) {
+            const now = new Date().toLocaleTimeString();
+            document.getElementById('status').innerHTML = `[${now}] ${message}`;
+        }
+        
+        // 页面加载时初始化
+        window.onload = initPage;
+    </script>
+</body>
+</html>

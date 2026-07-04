@@ -1,0 +1,28 @@
+[Unit]
+Description=G1小智助手服务
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=unitree
+Group=unitree
+WorkingDirectory=/home/unitree/tang/WK/PythonProject/py-xiaozhi-main
+ExecStart=/home/unitree/tang/WK/PythonProject/py-xiaozhi-main/start_g1.sh
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=g1-xiaozhi
+
+# 环境变量
+Environment=DISPLAY=:0
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PYTHONUNBUFFERED=1
+
+# 资源限制
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target

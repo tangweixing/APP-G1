@@ -1,0 +1,15 @@
+<launch>
+    <!-- 声明参数，允许上层 launch 传入 -->
+    <arg name="pcd_file" default="/home/nvidia/map_output.pcd"/>
+    <arg name="output_topic" default="filtered_cloud"/>
+    <arg name="voxel_size" default="0.2"/>
+
+    <!-- 设置参数，使用 arg 的值 -->
+    <param name="pcd_file" value="$(arg pcd_file)"/>
+    <param name="output_topic" value="$(arg output_topic)"/>
+    <param name="voxel_size" value="$(arg voxel_size)"/>
+
+    <!-- 启动节点 -->
+    <node name="downsample_pointcloud" pkg="tool" type="downsample_pointcloud" output="screen"/>
+</launch>
+

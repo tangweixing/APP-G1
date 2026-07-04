@@ -1,0 +1,8 @@
+<launch>
+  <!-- 启动 path_streamer 节点 -->
+  <node pkg="tool" type="record_teaching_path.py" name="record_teaching_path" output="screen"  args="">
+    <!-- 通过参数传入路径文件地址 -->
+    <param name="file_path" value="$(find tool)/path/teaching_paths.txt" />
+    <param name="distance_threshold" value= "0.3"/>
+  </node>
+</launch>

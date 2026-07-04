@@ -1,0 +1,5 @@
+
+<launch>
+    <node pkg="tool" type="path2waypoint" name="path2waypoint" output="screen">
+    </node>
+</launch>

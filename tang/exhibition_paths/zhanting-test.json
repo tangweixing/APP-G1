@@ -1,0 +1,18 @@
+{
+  "name": "zhanting-test",
+  "created_time": "2026-05-30 10:55:24",
+  "updated_time": "2026-05-30 10:55:24",
+  "waypoints": [
+    {
+      "id": 1,
+      "x": -1.366,
+      "y": 0.926,
+      "yaw": 2.5199774386696783,
+      "action_id": 1,
+      "say_texts": [
+        "你好"
+      ]
+    }
+  ],
+  "total_waypoints": 1
+}

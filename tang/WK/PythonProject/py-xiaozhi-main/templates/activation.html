@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>设备激活 - 小智AI客户端</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 2rem; }
+        .container { text-align: center; }
+        input { padding: 0.5rem; width: 300px; margin: 1rem 0; }
+        button { padding: 0.5rem 2rem; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>设备激活</h1>
+        <p>请输入激活码完成设备激活</p>
+        <input type="text" id="activationCode" placeholder="输入激活码">
+        <br>
+        <button onclick="activateDevice()">激活</button>
+        <p id="message"></p>
+    </div>
+
+    <script>
+        async function activateDevice() {
+            const code = document.getElementById("activationCode").value;
+            const res = await fetch("/api/activate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ code: code })
+            });
+            const data = await res.json();
+            if (data.success) {
+                document.getElementById("message").textContent = "激活成功，正在跳转...";
+                setTimeout(() => window.location.href = "/", 1000);
+            } else {
+                document.getElementById("message").textContent = "激活失败，请重试";
+            }
+        }
+    </script>
+</body>
+</html>

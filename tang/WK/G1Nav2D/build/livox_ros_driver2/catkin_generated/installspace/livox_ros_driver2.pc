@@ -1,0 +1,8 @@
+prefix=/home/unitree/tang/WK/G1Nav2D/install
+
+Name: livox_ros_driver2
+Description: Description of livox_ros_driver2
+Version: 2.7.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib 
+Requires: roscpp rospy std_msgs message_runtime pcl_ros

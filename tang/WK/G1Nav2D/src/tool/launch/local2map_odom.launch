@@ -1,0 +1,7 @@
+<launch>
+    <node name="local2map_odom" pkg="tool" type="local2map_odom" output="screen">
+        <remap from="/slam_odom" to="/slam_odom" />
+        <remap from="/odom_in_map" to="/Odomtery" />
+    </node>
+</launch>
+

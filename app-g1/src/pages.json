@@ -1,0 +1,48 @@
+{
+	"pages": [
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "G1 机器人控制",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/motion/motion",
+			"style": {
+				"navigationBarTitleText": "运动控制",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/ai/ai",
+			"style": {
+				"navigationBarTitleText": "AI控制",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/voice/voice",
+			"style": {
+				"navigationBarTitleText": "语音动作输出",
+				"navigationStyle": "custom"
+			}
+		},
+		{
+			"path": "pages/vision/vision",
+			"style": {
+				"navigationBarTitleText": "视觉识别模块",
+				"navigationStyle": "custom"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "white",
+		"navigationBarTitleText": "G1 机器人",
+		"navigationBarBackgroundColor": "#1a1a2e",
+		"backgroundColor": "#1a1a2e"
+	},
+	"app-plus": {
+		"screenOrientation": ["landscape-primary"]
+	}
+}

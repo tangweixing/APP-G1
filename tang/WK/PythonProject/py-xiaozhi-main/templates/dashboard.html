@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小智AI客户端 - 主界面</title>
+    <style>
+        /* 样式定义，确保页面布局和美观 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+        }
+        .header {
+            background-color: #3498db;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .status {
+            font-size: 0.9rem;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .card {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .status-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .status-item {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 5px;
+        }
+        .status-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-top: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 页面头部：显示应用名称和运行状态 -->
+    <div class="header">
+        <div class="logo">小智AI客户端</div>
+        <div class="status">运行中</div>
+    </div>
+
+    <!-- 主内容区：显示系统状态和功能面板 -->
+    <div class="container">
+        <!-- 系统状态卡片：展示协议、模式、激活状态 -->
+        <div class="card">
+            <h2>系统状态</h2>
+            <div class="status-info">
+                <div class="status-item">
+                    <div class="status-label">连接协议</div>
+                    <div class="status-value" id="protocol">加载中...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">运行模式</div>
+                    <div class="status-value" id="mode">加载中...</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">激活状态</div>
+                    <div class="status-value" id="activation">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 功能面板卡片：预留功能入口 -->
+        <div class="card">
+            <h2>功能面板</h2>
+            <p>这里是小智AI客户端的主要功能区域。</p>
+            <!-- 可以添加按钮、输入框等交互元素 -->
+        </div>
+    </div>
+
+    <!-- JavaScript：动态加载系统状态 -->
+    <script>
+        async function loadSystemStatus() {
+            try {
+                // 从后端 API 获取状态数据
+                const response = await fetch('/api/status');
+                const data = await response.json();
+
+                // 更新页面显示（补充对运行模式和激活状态的展示）
+                document.getElementById('protocol').textContent = data.protocol;
+                document.getElementById('mode').textContent = data.mode;
+                document.getElementById('activation').textContent = data.activated ? "已激活" : "未激活";
+            } catch (error) {
+                console.error('加载系统状态失败:', error);
+                // 失败时显示错误信息
+                document.getElementById('protocol').textContent = "获取失败";
+                document.getElementById('mode').textContent = "获取失败";
+                document.getElementById('activation').textContent = "获取失败";
+            }
+        }
+        // 页面加载时执行
+        window.onload = loadSystemStatus;
+    </script>
+</body>
+</html>

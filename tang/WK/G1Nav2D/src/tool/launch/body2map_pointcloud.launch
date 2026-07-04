@@ -1,0 +1,7 @@
+
+<launch>
+    <node pkg="tool" type="body2map_pointcloud" name="body2map_pointcloud" output="screen">
+        <remap from="/map_cloud" to="map_cloud" />
+        <remap from="/velodyne_points" to="velodyne_points" />
+    </node>
+</launch>

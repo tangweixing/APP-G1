@@ -1,0 +1,461 @@
+卷 Windows 的文件夹 PATH 列表
+卷序列号为 56B1-B5EB
+C:.
+│  application.py
+│  dir_structure.txt
+│  __init__.py
+│  
+├─audio_codecs
+│  │  audio_codec.py
+│  │  __init__.py
+│  │  
+│  └─__pycache__
+│          audio_codec.cpython-310.pyc
+│          audio_codec.cpython-39.pyc
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+├─audio_processing
+│  │  vad_detector.py
+│  │  wake_word_detect.py
+│  │  webrtc_processing.py
+│  │  __init__.py
+│  │  
+│  └─__pycache__
+│          wake_word_detect.cpython-310.pyc
+│          wake_word_detect.cpython-39.pyc
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+├─constants
+│  │  constants.py
+│  │  system.py
+│  │  __init__.py
+│  │  
+│  └─__pycache__
+│          constants.cpython-310.pyc
+│          constants.cpython-39.pyc
+│          system.cpython-310.pyc
+│          system.cpython-39.pyc
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+├─core
+│  │  ota.py
+│  │  system_initializer.py
+│  │  __init__.py
+│  │  
+│  └─__pycache__
+│          ota.cpython-310.pyc
+│          ota.cpython-39.pyc
+│          system_initializer.cpython-310.pyc
+│          system_initializer.cpython-39.pyc
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+├─display
+│  │  base_display.py
+│  │  cli_display.py
+│  │  gui_display.py
+│  │  gui_display.ui
+│  │  __init__.py
+│  │  
+│  └─__pycache__
+│          base_display.cpython-310.pyc
+│          base_display.cpython-39.pyc
+│          cli_display.cpython-310.pyc
+│          cli_display.cpython-39.pyc
+│          gui_display.cpython-310.pyc
+│          gui_display.cpython-39.pyc
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+├─iot
+│  │  thing.py
+│  │  thing_manager.py
+│  │  
+│  ├─things
+│  │  │  countdown_timer.py
+│  │  │  lamp.py
+│  │  │  music_player.py
+│  │  │  speaker.py
+│  │  │  
+│  │  └─CameraVL
+│  │          Camera.py
+│  │          VL.py
+│  │          
+│  └─__pycache__
+│          thing.cpython-310.pyc
+│          thing.cpython-39.pyc
+│          thing_manager.cpython-310.pyc
+│          thing_manager.cpython-39.pyc
+│          
+├─mcp
+│  │  mcp_server.py
+│  │  __init__.py
+│  │  
+│  ├─tools
+│  │  │  __init__.py
+│  │  │  
+│  │  ├─amap
+│  │  │  │  manager.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          tools.cpython-310.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─bazi
+│  │  │  │  bazi_calculator.py
+│  │  │  │  engine.py
+│  │  │  │  manager.py
+│  │  │  │  marriage_analyzer.py
+│  │  │  │  marriage_tools.py
+│  │  │  │  models.py
+│  │  │  │  professional_analyzer.py
+│  │  │  │  professional_data.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          bazi_calculator.cpython-310.pyc
+│  │  │          bazi_calculator.cpython-39.pyc
+│  │  │          engine.cpython-310.pyc
+│  │  │          engine.cpython-39.pyc
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          marriage_analyzer.cpython-310.pyc
+│  │  │          marriage_analyzer.cpython-39.pyc
+│  │  │          marriage_tools.cpython-310.pyc
+│  │  │          marriage_tools.cpython-39.pyc
+│  │  │          models.cpython-310.pyc
+│  │  │          models.cpython-39.pyc
+│  │  │          professional_analyzer.cpython-310.pyc
+│  │  │          professional_analyzer.cpython-39.pyc
+│  │  │          professional_data.cpython-310.pyc
+│  │  │          professional_data.cpython-39.pyc
+│  │  │          tools.cpython-310.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─calendar
+│  │  │  │  database.py
+│  │  │  │  manager.py
+│  │  │  │  models.py
+│  │  │  │  reminder_service.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          database.cpython-310.pyc
+│  │  │          database.cpython-39.pyc
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          models.cpython-310.pyc
+│  │  │          models.cpython-39.pyc
+│  │  │          reminder_service.cpython-310.pyc
+│  │  │          reminder_service.cpython-39.pyc
+│  │  │          tools.cpython-310.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─camera
+│  │  │  │  base_camera.py
+│  │  │  │  camera.py
+│  │  │  │  normal_camera.py
+│  │  │  │  vl_camera.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          base_camera.cpython-310.pyc
+│  │  │          base_camera.cpython-39.pyc
+│  │  │          normal_camera.cpython-310.pyc
+│  │  │          normal_camera.cpython-39.pyc
+│  │  │          vl_camera.cpython-310.pyc
+│  │  │          vl_camera.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─handshake
+│  │  │  │  manager.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          manager.cpython-39.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─music
+│  │  │  │  manager.py
+│  │  │  │  music_player.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          music_player.cpython-310.pyc
+│  │  │          music_player.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─railway
+│  │  │  │  client.py
+│  │  │  │  manager.py
+│  │  │  │  models.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          client.cpython-310.pyc
+│  │  │          client.cpython-39.pyc
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          models.cpython-310.pyc
+│  │  │          models.cpython-39.pyc
+│  │  │          tools.cpython-310.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─recipe
+│  │  │  │  client.py
+│  │  │  │  manager.py
+│  │  │  │  models.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          client.cpython-310.pyc
+│  │  │          client.cpython-39.pyc
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          models.cpython-310.pyc
+│  │  │          models.cpython-39.pyc
+│  │  │          tools.cpython-310.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─search
+│  │  │  │  client.py
+│  │  │  │  manager.py
+│  │  │  │  models.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          client.cpython-310.pyc
+│  │  │          client.cpython-39.pyc
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          models.cpython-310.pyc
+│  │  │          models.cpython-39.pyc
+│  │  │          tools.cpython-310.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─system
+│  │  │  │  device_status.py
+│  │  │  │  manager.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  ├─app_management
+│  │  │  │  │  killer.py
+│  │  │  │  │  launcher.py
+│  │  │  │  │  scanner.py
+│  │  │  │  │  utils.py
+│  │  │  │  │  __init__.py
+│  │  │  │  │  
+│  │  │  │  ├─linux
+│  │  │  │  │      killer.py
+│  │  │  │  │      launcher.py
+│  │  │  │  │      scanner.py
+│  │  │  │  │      __init__.py
+│  │  │  │  │      
+│  │  │  │  ├─mac
+│  │  │  │  │      killer.py
+│  │  │  │  │      launcher.py
+│  │  │  │  │      scanner.py
+│  │  │  │  │      __init__.py
+│  │  │  │  │      
+│  │  │  │  ├─windows
+│  │  │  │  │      killer.py
+│  │  │  │  │      launcher.py
+│  │  │  │  │      scanner.py
+│  │  │  │  │      __init__.py
+│  │  │  │  │      
+│  │  │  │  └─__pycache__
+│  │  │  │          killer.cpython-310.pyc
+│  │  │  │          killer.cpython-39.pyc
+│  │  │  │          launcher.cpython-310.pyc
+│  │  │  │          launcher.cpython-39.pyc
+│  │  │  │          scanner.cpython-310.pyc
+│  │  │  │          scanner.cpython-39.pyc
+│  │  │  │          utils.cpython-310.pyc
+│  │  │  │          utils.cpython-39.pyc
+│  │  │  │          __init__.cpython-310.pyc
+│  │  │  │          __init__.cpython-39.pyc
+│  │  │  │          
+│  │  │  └─__pycache__
+│  │  │          device_status.cpython-310.pyc
+│  │  │          device_status.cpython-39.pyc
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          tools.cpython-310.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  ├─timer
+│  │  │  │  manager.py
+│  │  │  │  timer_service.py
+│  │  │  │  tools.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          manager.cpython-310.pyc
+│  │  │          manager.cpython-39.pyc
+│  │  │          timer_service.cpython-310.pyc
+│  │  │          timer_service.cpython-39.pyc
+│  │  │          tools.cpython-310.pyc
+│  │  │          tools.cpython-39.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          __init__.cpython-39.pyc
+│  │  │          
+│  │  └─__pycache__
+│  │          __init__.cpython-310.pyc
+│  │          __init__.cpython-39.pyc
+│  │          
+│  └─__pycache__
+│          mcp_server.cpython-310.pyc
+│          mcp_server.cpython-39.pyc
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+├─network
+│      mqtt_client.py
+│      __init__.py
+│      
+├─protocols
+│  │  mqtt_protocol.py
+│  │  protocol.py
+│  │  websocket_protocol.py
+│  │  __init__.py
+│  │  
+│  └─__pycache__
+│          mqtt_protocol.cpython-310.pyc
+│          mqtt_protocol.cpython-39.pyc
+│          protocol.cpython-310.pyc
+│          protocol.cpython-39.pyc
+│          websocket_protocol.cpython-310.pyc
+│          websocket_protocol.cpython-39.pyc
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+├─utils
+│  │  common_utils.py
+│  │  config_manager.py
+│  │  device_activator.py
+│  │  device_fingerprint.py
+│  │  logging_config.py
+│  │  opus_loader.py
+│  │  resource_finder.py
+│  │  volume_controller.py
+│  │  __init__.py
+│  │  
+│  └─__pycache__
+│          common_utils.cpython-310.pyc
+│          common_utils.cpython-39.pyc
+│          config_manager.cpython-310.pyc
+│          config_manager.cpython-39.pyc
+│          device_activator.cpython-310.pyc
+│          device_activator.cpython-39.pyc
+│          device_fingerprint.cpython-310.pyc
+│          device_fingerprint.cpython-39.pyc
+│          logging_config.cpython-310.pyc
+│          logging_config.cpython-39.pyc
+│          opus_loader.cpython-310.pyc
+│          opus_loader.cpython-39.pyc
+│          resource_finder.cpython-310.pyc
+│          resource_finder.cpython-39.pyc
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+├─views
+│  │  __init__.py
+│  │  
+│  ├─activation
+│  │  │  activation_window.py
+│  │  │  activation_window.ui
+│  │  │  cli_activation.py
+│  │  │  __init__.py
+│  │  │  
+│  │  └─__pycache__
+│  │          activation_window.cpython-310.pyc
+│  │          activation_window.cpython-39.pyc
+│  │          __init__.cpython-310.pyc
+│  │          __init__.cpython-39.pyc
+│  │          
+│  ├─base
+│  │  │  async_mixins.py
+│  │  │  base_window.py
+│  │  │  __init__.py
+│  │  │  
+│  │  └─__pycache__
+│  │          async_mixins.cpython-310.pyc
+│  │          async_mixins.cpython-39.pyc
+│  │          base_window.cpython-310.pyc
+│  │          base_window.cpython-39.pyc
+│  │          __init__.cpython-310.pyc
+│  │          __init__.cpython-39.pyc
+│  │          
+│  ├─components
+│  │  │  shortcut_manager.py
+│  │  │  system_tray.py
+│  │  │  __init__.py
+│  │  │  
+│  │  └─__pycache__
+│  │          shortcut_manager.cpython-310.pyc
+│  │          shortcut_manager.cpython-39.pyc
+│  │          system_tray.cpython-310.pyc
+│  │          system_tray.cpython-39.pyc
+│  │          __init__.cpython-310.pyc
+│  │          __init__.cpython-39.pyc
+│  │          
+│  ├─settings
+│  │  │  settings_window.py
+│  │  │  settings_window.ui
+│  │  │  __init__.py
+│  │  │  
+│  │  ├─components
+│  │  │  │  shortcuts_settings.py
+│  │  │  │  __init__.py
+│  │  │  │  
+│  │  │  └─__pycache__
+│  │  │          shortcuts_settings.cpython-310.pyc
+│  │  │          __init__.cpython-310.pyc
+│  │  │          
+│  │  └─__pycache__
+│  │          settings_window.cpython-310.pyc
+│  │          __init__.cpython-310.pyc
+│  │          
+│  └─__pycache__
+│          __init__.cpython-310.pyc
+│          __init__.cpython-39.pyc
+│          
+└─__pycache__
+        application.cpython-310.pyc
+        application.cpython-39.pyc
+        __init__.cpython-310.pyc
+        __init__.cpython-39.pyc
+        

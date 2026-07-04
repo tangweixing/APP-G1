@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<launch>
+
+    <!-- 启动rviz -->
+    <arg name="rviz" default="true" />
+
+    <!-- 设置地图的配置文件 -->
+    <arg name="2dmap_file" default="/home/unitree/tang/map/mymap3.yaml" />
+    <!-- <arg name="2dmap_file" default="/home/unitree/tang/map/mymap3.yaml" /> -->
+    <arg name="2dmap_frame" default="map"/>
+    <arg name="2dmap_topic" default="map_2d"/>            <!--  注意map_server的地图话题名不能为数字开头 -->
+    <!-- <arg name="2dmap_topic" default="map"/>      注意map_server的地图话题名不能为数字开头 -->
+
+    <!-- 运行地图服务器，并且加载设置的地图-->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(arg 2dmap_file) /map:=$(arg 2dmap_topic)" >
+        <param name="frame_id" value="$(arg 2dmap_frame)"/>
+    </node>
+
+    <!-- rviz display -->
+    <group if="$(arg rviz)">
+        <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" />
+    </group>
+
+</launch>

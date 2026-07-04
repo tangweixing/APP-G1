@@ -1,0 +1,17 @@
+-I/home/unitree/tang/WK/G1Nav2D/src/ros_map_edit/include
+-I/opt/ros/noetic/include
+-I/opt/ros/noetic/share/xmlrpcpp/cmake/../../../include/xmlrpcpp
+-I/usr/include
+-I/usr/include/eigen3
+-I/usr/include/OGRE/Overlay
+-I/usr/include/OGRE
+-I/usr/share/orocos_kdl/cmake/../../../include
+-I/usr/include/opencv4
+-I/usr/include/opencv4
+-DROS_BUILD_SHARED_LIBS=1
+-DROS_BUILD_SHARED_LIBS=1
+-DROS_PACKAGE_NAME="ros_map_edit"
+-DROSCONSOLE_BACKEND_LOG4CXX
+-o
+/home/unitree/tang/WK/G1Nav2D/build/ros_map_edit/include/ros_map_edit/moc_map_eraser_tool.cpp
+/home/unitree/tang/WK/G1Nav2D/src/ros_map_edit/include/ros_map_edit/map_eraser_tool.h

@@ -1,0 +1,75 @@
+global_costmap:
+  plugins:
+    - { name: static_layer,    type: "costmap_2d::StaticLayer" }
+    - { name: obstacle_layer,  type: "costmap_2d::ObstacleLayer" }
+    - { name: inflation_layer, type: "costmap_2d::InflationLayer" }
+
+  track_unknown_space: false
+  global_frame: map
+  robot_base_frame: base_link
+  map_type: costmap
+  footprint: [[0.3, 0.15], [0.25, 0.2], [-0.1, 0.2], [-0.1, -0.2], [0.25, -0.2], [0.3, -0.15]]
+  footprint_padding: 0.05
+
+  update_frequency: 2.0
+  publish_frequency: 1.0
+  transform_tolerance: 0.5
+
+  static_map: true
+  always_send_full_costmap: false
+  resolution: 0.05
+
+  static_layer:
+    map_topic: /map_2d
+    track_unknown_space: false
+
+  obstacle_layer:
+    observation_sources: 3dscan 2dscan
+    3dscan: { sensor_frame: top_laser_link, data_type: PointCloud2, topic: vlp_points, obstacle_range: 6.0, raytrace_range: 6.5, marking: true, clearing: true, min_obstacle_height: 0.5, max_obstacle_height: 0.6 }
+    2dscan: { sensor_frame: base_link, data_type: LaserScan, topic: scan, obstacle_range: 3.0, raytrace_range: 3.5, marking: true, clearing: true,min_obstacle_height: -1.0 }
+    track_unknown_space: false
+    inflation_option: 3
+
+  inflation_layer:
+    inflation_radius: 20
+    cost_scaling_factor: 9
+
+local_costmap:
+  plugins:
+
+    - { name: inflation_layer, type: "costmap_2d::InflationLayer" }
+
+  global_frame: map
+  robot_base_frame: base_link
+  map_type: costmap
+  footprint: [[0.3, 0.15], [0.25, 0.2], [-0.1, 0.2], [-0.1, -0.2], [0.25, -0.2], [0.3, -0.15]]
+  footprint_padding: 0.0
+
+  update_frequency: 5.0
+  publish_frequency: 1.0
+  transform_tolerance: 0.5
+
+  static_map: false
+  rolling_window: true
+  width: 3
+  height: 3
+  resolution: 0.05
+  obstacle_range: 6.0 #插入代价地图的障碍物应距离机器人的最大默认距离，以米为单位。它可以在每个传感器的基础上进行覆盖操作。
+  
+  raytrace_range: 6.0 # 清除障碍物范围；
+  keep_out_layer:
+    enabled: true
+    fill_zones: false
+    inflation_option: 2
+
+  obstacle_layer:
+    observation_sources: 3dscan 2dscan
+    3dscan: { sensor_frame: top_laser_link, data_type: PointCloud2, topic: vlp_points, obstacle_range: 6.0, raytrace_range: 6.5, marking: true, clearing: true, min_obstacle_height: 0.5, max_obstacle_height: 0.6 }
+    2dscan: { sensor_frame: base_link, data_type: LaserScan, topic: scan, obstacle_range: 6.0, raytrace_range: 6.5, marking: true, clearing: true,min_obstacle_height: -1.0 }
+    track_unknown_space: false
+    inflation_option: 3
+
+  inflation_layer:
+    inflation_radius: 0.25
+    cost_scaling_factor: 2.61
+

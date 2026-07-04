@@ -1,0 +1,31 @@
+name: Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+        browser:
+          - ChromeHeadless
+          - FirefoxHeadless
+        include:
+          # FIXME: We'd like to use "macos-latest", but Safari tests
+          #        are flaky on it and timeout often. As of 2026-05-23
+          #        macos-latest is still on 10.15.
+          - os: macos-26
+            browser: Safari
+          - os: windows-latest
+            browser: EdgeHeadless
+      fail-fast: false
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+      - run: npm update
+      - run: npm run test
+        env:
+          TEST_BROWSER_NAME: ${{ matrix.browser }}

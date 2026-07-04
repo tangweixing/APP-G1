@@ -1,0 +1,4625 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>G1 机械臂 Web 控制</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .status-bar {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .action-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .action-card.executing {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .action-card.completed {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            color: white;
+        }
+
+        .action-card.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+
+
+        .action-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .action-card.executing .action-name,
+        .action-card.completed .action-name,
+        .action-card.error .action-name {
+            color: white;
+        }
+
+        .action-description {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .action-card.executing .action-description,
+        .action-card.completed .action-description,
+        .action-card.error .action-description {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .log-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .log-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .log-container {
+            background: #1a1a2e;
+            border-radius: 10px;
+            padding: 15px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px;
+            border-radius: 5px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .log-info { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+        .log-success { background: rgba(34, 197, 94, 0.2); color: #4ade80; }
+        .log-error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .log-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .network-info {
+            background: rgba(255,255,255,0.1);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        /* 导航控制面板 */
+        /* 模块容器 */
+        .module-panel {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+
+        .module-panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .module-buttons {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: white;
+        }
+
+        .btn-purple {
+            background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* RViz 容器 */
+        .rviz-container {
+            background: #1a1a2e;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .rviz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #16213e;
+            color: white;
+            font-weight: bold;
+        }
+
+        .rviz-frame {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: #0f0f1a;
+        }
+
+        #rvizIframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .rviz-placeholder {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #666;
+        }
+
+        .rviz-placeholder p {
+            margin-top: 15px;
+            font-size: 1.2em;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8em; }
+            .actions-grid { grid-template-columns: 1fr; }
+            .status-bar { flex-direction: column; gap: 10px; }
+            .nav-buttons { flex-direction: column; }
+        }
+
+        /* ===== 人脸/手势识别模块日志框 ===== */
+        .face-greet-log-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            margin-top: 15px;
+            overflow: hidden;
+        }
+        .face-greet-log-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 15px;
+            font-size: 0.95em;
+            font-weight: bold;
+        }
+        .face-greet-log-container {
+            background: #1a1a2e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            padding: 12px;
+            height: 220px;
+            overflow-y: auto;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .face-greet-log-container .log-line {
+            margin-bottom: 3px;
+        }
+        .face-greet-log-container .log-line.error { color: #f87171; }
+        .face-greet-log-container .log-line.success { color: #4ade80; }
+        .face-greet-log-container .log-line.warning { color: #fbbf24; }
+
+        /* ===== 手势识别模块-按键区 ===== */
+        .gesture-key-section {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 10px;
+            padding: 12px 15px;
+            margin-top: 15px;
+        }
+        .gesture-key-title {
+            color: #0369a1;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+        .gesture-key-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .gesture-key-buttons .btn {
+            padding: 8px 14px;
+            font-size: 0.85em;
+        }
+
+        /* ===== 手势识别模块-模式说明卡片 ===== */
+        .gesture-modes-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .gesture-mode-card {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-left: 4px solid #f59e0b;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.88em;
+            color: #422006;
+        }
+        .gesture-mode-card strong {
+            color: #b45309;
+            margin-right: 8px;
+        }
+
+        /* 虚拟摇杆样式 */
+        .joystick-area {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        .joystick-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+        .joystick-label {
+            font-weight: bold;
+            color: #555;
+            font-size: 0.9em;
+        }
+        .joystick-container {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #e8eaf6 0%, #c5cae9 100%);
+            border: 3px solid #7986cb;
+            position: relative;
+            touch-action: none;
+            user-select: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(121, 134, 203, 0.3);
+        }
+        .joystick-container::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 2px;
+            height: 100%;
+            background: rgba(121, 134, 203, 0.3);
+            transform: translate(-50%, -50%);
+        }
+        .joystick-container::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: rgba(121, 134, 203, 0.3);
+            transform: translate(-50%, -50%);
+        }
+        .joystick-knob {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: 3px solid #5c6bc0;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: box-shadow 0.15s;
+            z-index: 2;
+        }
+        .joystick-knob.active {
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+        .joystick-info {
+            font-size: 0.8em;
+            color: #888;
+            text-align: center;
+        }
+
+        /* 档位按钮 */
+        .gear-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .gear-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        .gear-btn {
+            padding: 8px 18px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95em;
+            transition: all 0.2s;
+        }
+        .gear-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+        .gear-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: transparent;
+        }
+        .gear-speed-info {
+            font-size: 0.8em;
+            color: #888;
+            text-align: center;
+        }
+
+        /* FSM模式按钮 */
+        .fsm-section {
+            margin-top: 20px;
+        }
+        .fsm-section h3 {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 12px;
+        }
+        .fsm-groups {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .fsm-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .fsm-group h4 {
+            font-size: 0.9em;
+            color: #888;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #eee;
+        }
+        .fsm-group-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .fsm-btn {
+            padding: 6px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .fsm-btn:hover {
+            border-color: #06b6d4;
+            color: #06b6d4;
+            transform: translateY(-1px);
+        }
+        .fsm-btn:active {
+            transform: translateY(0);
+            background: #e0f7fa;
+        }
+        .fsm-btn.group-basic { border-left: 3px solid #4ade80; }
+        .fsm-btn.group-pose { border-left: 3px solid #f59e0b; }
+        .fsm-btn.group-motion { border-left: 3px solid #667eea; }
+
+        /* 急停按钮 */
+        .emergency-btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.2s;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+        }
+        .emergency-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.6);
+        }
+        .emergency-btn:active {
+            transform: translateY(0);
+        }
+
+        /* 速度显示 */
+        .velocity-display {
+            background: #f1f5f9;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-family: monospace;
+            font-size: 0.85em;
+            color: #475569;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .velocity-display span {
+            white-space: nowrap;
+        }
+
+        /* ========== 虚拟遥控器模块样式 ========== */
+        .vr-status-bar {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 16px; background: #1a1a2e; border-radius: 10px;
+            margin-bottom: 15px; color: #eee;
+        }
+        .vr-status-indicator {
+            display: flex; align-items: center; gap: 8px; font-size: 0.95em;
+        }
+        .vr-status-dot {
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #e74c3c; transition: background 0.3s;
+        }
+        .vr-status-dot.connected { background: #2ecc71; }
+        .vr-status-dot.publishing { background: #2ecc71; animation: vr-pulse 1s infinite; }
+        @keyframes vr-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        .vr-emergency-btn {
+            background: #e74c3c; color: white; border: none;
+            padding: 8px 20px; border-radius: 6px; font-size: 14px;
+            font-weight: bold; cursor: pointer; transition: all 0.2s;
+        }
+        .vr-emergency-btn:active { background: #c0392b; transform: scale(0.95); }
+        .vr-emergency-btn.stopped { background: #95a5a6; }
+
+        .vr-settings-panel {
+            padding: 16px; background: #1a1a2e; border-radius: 10px;
+            margin-bottom: 15px; color: #eee;
+        }
+        .vr-settings-row {
+            display: flex; gap: 10px; align-items: center; margin-bottom: 10px;
+        }
+        .vr-settings-row select, .vr-settings-row input {
+            flex: 1; padding: 8px 12px; border-radius: 6px;
+            border: 1px solid #0f3460; background: #16213e; color: #eee;
+            font-size: 14px;
+        }
+        .vr-settings-row button {
+            padding: 8px 20px; border-radius: 6px; border: none;
+            background: #0f3460; color: #eee; cursor: pointer; font-size: 14px;
+        }
+        .vr-settings-row button:hover { background: #1a5276; }
+        .vr-settings-row button.connected { background: #27ae60; }
+
+        .vr-controller {
+            background: #1a1a2e; border-radius: 12px; padding: 15px;
+        }
+
+        /* 肩键 */
+        .vr-shoulder-row {
+            display: flex; justify-content: space-between; padding: 6px 16px;
+            margin-bottom: 4px;
+        }
+        .vr-shoulder-btn {
+            width: 80px; height: 36px; border-radius: 6px;
+            border: 2px solid #0f3460; background: #16213e;
+            color: #eee; font-size: 14px; font-weight: bold;
+            cursor: pointer; transition: all 0.1s;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .vr-shoulder-btn:active, .vr-shoulder-btn.pressed {
+            background: #e94560; border-color: #e94560; color: white;
+        }
+
+        /* 中间功能键 */
+        .vr-func-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 6px 16px; margin-bottom: 4px;
+        }
+        .vr-func-btn {
+            width: 56px; height: 30px; border-radius: 4px;
+            border: 1px solid #0f3460; background: #16213e;
+            color: #aaa; font-size: 11px; cursor: pointer;
+            transition: all 0.1s;
+        }
+        .vr-func-btn:active, .vr-func-btn.pressed {
+            background: #e94560; border-color: #e94560; color: white;
+        }
+
+        /* 主控制区 */
+        .vr-main-controls {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 8px;
+        }
+        .vr-joystick-area {
+            width: 160px; height: 160px; position: relative; flex-shrink: 0;
+        }
+        .vr-joystick-base {
+            width: 140px; height: 140px; border-radius: 50%;
+            background: radial-gradient(circle, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid #0f3460;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .vr-joystick-thumb {
+            width: 56px; height: 56px; border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #533483, #0f3460);
+            border: 2px solid #533483;
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab; transition: box-shadow 0.1s;
+        }
+        .vr-joystick-thumb.active {
+            cursor: grabbing;
+            box-shadow: 0 0 15px rgba(83, 52, 131, 0.6);
+        }
+        .vr-joystick-label {
+            text-align: center; font-size: 11px; color: #666; margin-top: 4px;
+        }
+        .vr-joystick-value {
+            text-align: center; font-size: 10px; color: #555; font-family: monospace;
+        }
+
+        /* 中间 - 方向键 + ABXY */
+        .vr-center-controls {
+            display: flex; flex-direction: column; align-items: center;
+            gap: 12px; flex-shrink: 0;
+        }
+        .vr-dpad {
+            display: grid; grid-template-columns: 44px 44px 44px;
+            grid-template-rows: 44px 44px 44px; gap: 2px;
+        }
+        .vr-dpad-btn {
+            width: 44px; height: 44px; border-radius: 4px;
+            border: 1px solid #0f3460; background: #16213e;
+            color: #aaa; font-size: 16px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.1s;
+        }
+        .vr-dpad-btn:active, .vr-dpad-btn.pressed {
+            background: #e94560; border-color: #e94560; color: white;
+        }
+        .vr-dpad-center { background: transparent; border: none; }
+
+        .vr-abxy {
+            display: grid; grid-template-columns: 48px 48px 48px;
+            grid-template-rows: 48px 48px; gap: 4px; margin-top: 8px;
+        }
+        .vr-abxy-btn {
+            width: 48px; height: 48px; border-radius: 50%;
+            border: 2px solid; font-size: 16px; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center;
+            justify-content: center; transition: all 0.1s;
+        }
+        .vr-abxy-btn:active, .vr-abxy-btn.pressed { transform: scale(0.9); }
+        .vr-btn-a { border-color: #27ae60; color: #27ae60; background: rgba(39,174,96,0.1); }
+        .vr-btn-a:active, .vr-btn-a.pressed { background: #27ae60; color: white; }
+        .vr-btn-b { border-color: #e74c3c; color: #e74c3c; background: rgba(231,76,60,0.1); }
+        .vr-btn-b:active, .vr-btn-b.pressed { background: #e74c3c; color: white; }
+        .vr-btn-x { border-color: #3498db; color: #3498db; background: rgba(52,152,219,0.1); }
+        .vr-btn-x:active, .vr-btn-x.pressed { background: #3498db; color: white; }
+        .vr-btn-y { border-color: #f39c12; color: #f39c12; background: rgba(243,156,18,0.1); }
+        .vr-btn-y:active, .vr-btn-y.pressed { background: #f39c12; color: white; }
+
+        .vr-state-display {
+            padding: 10px 16px; background: #16213e; border-radius: 8px;
+            margin-top: 8px; font-family: monospace; font-size: 11px; color: #888;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px;
+        }
+        .vr-state-label { color: #555; }
+        .vr-state-value { color: #0f3460; }
+
+        .vr-keyboard-hint {
+            text-align: center; font-size: 10px; color: #444;
+            padding: 8px; margin-top: 4px;
+        }
+
+        /* 组合键区 */
+        .vr-combo-section {
+            padding: 12px; background: #16213e; border-radius: 8px; margin-top: 8px;
+        }
+        .vr-combo-section-title {
+            font-size: 13px; color: #888; margin-bottom: 8px;
+            text-align: center; border-bottom: 1px solid #0f3460;
+            padding-bottom: 6px;
+        }
+        .vr-combo-group {
+            display: flex; flex-wrap: wrap; gap: 4px;
+            justify-content: center; margin-bottom: 8px;
+        }
+        .vr-combo-group:last-child { margin-bottom: 0; }
+        .vr-combo-group-label {
+            width: 100%; font-size: 10px; color: #555;
+            text-align: center; margin-bottom: 3px;
+        }
+        .vr-combo-btn {
+            padding: 4px 8px; border-radius: 4px; border: 1px solid #0f3460;
+            background: #1a1a2e; color: #bbb; cursor: pointer;
+            font-size: 10px; transition: all 0.15s;
+            display: flex; align-items: center; gap: 2px;
+            white-space: nowrap;
+        }
+        .vr-combo-btn:hover { border-color: #533483; color: #eee; }
+        .vr-combo-btn:active, .vr-combo-btn.pressed {
+            background: #e94560; border-color: #e94560; color: white;
+        }
+        .vr-combo-btn .vr-combo-keys {
+            font-size: 9px; color: #666; font-family: monospace;
+        }
+        .vr-combo-btn:active .vr-combo-keys,
+        .vr-combo-btn.pressed .vr-combo-keys { color: rgba(255,255,255,0.7); }
+        .vr-combo-btn.vr-dance-key { border-color: #8e44ad; }
+        .vr-combo-btn.vr-dance-key:hover { background: rgba(142,68,173,0.15); color: #bb77dd; }
+        .vr-combo-btn.vr-mode-key { border-color: #2980b9; }
+        .vr-combo-btn.vr-mode-key:hover { background: rgba(41,128,185,0.15); color: #3498db; }
+
+        @media (max-width: 768px) {
+            .vr-joystick-area { width: 130px; height: 130px; }
+            .vr-joystick-base { width: 110px; height: 110px; }
+            .vr-joystick-thumb { width: 46px; height: 46px; }
+            .vr-shoulder-btn { width: 65px; height: 32px; font-size: 12px; }
+            .vr-dpad-btn { width: 38px; height: 38px; font-size: 14px; }
+            .vr-abxy-btn { width: 42px; height: 42px; font-size: 14px; }
+            .vr-dpad { grid-template-columns: 38px 38px 38px; grid-template-rows: 38px 38px 38px; }
+            .vr-abxy { grid-template-columns: 42px 42px 42px; grid-template-rows: 42px 42px; }
+        }
+
+        /* 键盘控制模块样式 */
+        kbd {
+            display: inline-block;
+            padding: 2px 7px;
+            font-size: 0.85em;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            background: linear-gradient(180deg, #f8f9fa, #e9ecef);
+            border: 1px solid #ced4da;
+            border-bottom-width: 2px;
+            border-radius: 4px;
+            color: #495057;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.5); }
+            50% { opacity: 0.8; box-shadow: 0 0 6px 3px rgba(74, 222, 128, 0.3); }
+        }
+
+        /* 语音动作模块样式 */
+        .va-action-btn {
+            padding: 10px 12px; border: 2px solid #e2e8f0; border-radius: 8px;
+            background: white; cursor: pointer; font-size: 0.88em; text-align: center;
+            transition: all 0.15s ease;
+        }
+        .va-action-btn:hover { border-color: #6366f1; background: #eef2ff; }
+        .va-action-btn.selected { border-color: #6366f1; background: #6366f1; color: white; box-shadow: 0 2px 8px rgba(99,102,241,0.3); }
+        .va-action-btn .action-name { font-weight: bold; display: block; margin-bottom: 2px; }
+        .va-action-btn .action-desc { font-size: 0.82em; color: inherit; opacity: 0.75; }
+        .va-preset-category { margin-bottom: 10px; }
+        .va-preset-category-title { font-size: 0.85em; color: #92400e; font-weight: bold; margin-bottom: 5px; }
+        .va-preset-item { display: inline-block; padding: 4px 10px; margin: 2px 4px 2px 0;
+            border: 1px solid #fcd34d; border-radius: 15px; font-size: 0.82em; cursor: pointer;
+            background: #fffbeb; color: #92400e; transition: all 0.15s; }
+        .va-preset-item:hover { background: #fef3c7; border-color: #f59e0b; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 G1 综合控制平台</h1>
+        <p class="subtitle">机械臂控制 · 导航功能 · 实时监控</p>
+
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-indicator" id="connectionStatus"></div>
+                <span id="connectionText">连接中...</span>
+            </div>
+            <div class="status-item">
+                <span>🌐 网络接口：</span>
+                <span class="network-info" id="networkInfo">加载中...</span>
+            </div>
+            <div class="status-item">
+                <span>当前状态：</span>
+                <span id="systemStatus">就绪</span>
+            </div>
+            <div class="status-item">
+                <span>导航状态：</span>
+                <span id="navigationStatus" class="network-info">未启动</span>
+            </div>
+            <div class="status-item">
+                <span>RViz：</span>
+                <span id="rvizStatus" class="network-info">未启动</span>
+            </div>
+            <div class="status-item">
+                <span>运动控制：</span>
+                <span id="locoStatus" class="network-info">未启动</span>
+            </div>
+            <div class="status-item">
+                <span>小野AI：</span>
+                <span id="xiaoyeStatus" class="network-info">未启动</span>
+            </div>
+        </div>
+
+        <!-- 动作控制模块 -->
+        <div class="module-panel">
+            <h2>🤚 动作控制</h2>
+            <div class="actions-grid" id="actionsGrid">
+                <!-- 动作卡片将通过 JavaScript 动态生成 -->
+            </div>
+            <div class="quick-actions">
+                <button class="btn btn-danger" onclick="stopCurrentAction()">停止当前动作</button>
+                <button class="btn btn-primary" onclick="refreshStatus()">刷新状态</button>
+            </div>
+        </div>
+
+        <!-- 运动控制模块 -->
+        <div class="module-panel">
+            <h2>🏃 运动控制</h2>
+            <div class="module-buttons">
+                <button class="btn btn-success" id="startLocoBtn" onclick="startLoco()">开启运动控制</button>
+                <button class="btn btn-danger" id="stopLocoBtn" onclick="stopLoco()" disabled>停止运动控制</button>
+            </div>
+            <p style="color: #666; font-size: 0.9em;">
+                <strong>状态：</strong><span id="locoStatusDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未启动</span>
+            </p>
+
+            <!-- 摇杆 + 档位 + 急停 -->
+            <div class="joystick-area">
+                <div class="joystick-wrapper">
+                    <div class="joystick-label">移动摇杆（前后左右）</div>
+                    <div class="joystick-container" id="moveJoystick">
+                        <div class="joystick-knob" id="moveKnob"></div>
+                    </div>
+                    <div class="joystick-info">↑前进 ↓后退 ←左移 →右移</div>
+                </div>
+                <div class="joystick-wrapper">
+                    <div class="joystick-label">转向摇杆（左右旋转）</div>
+                    <div class="joystick-container" id="turnJoystick">
+                        <div class="joystick-knob" id="turnKnob"></div>
+                    </div>
+                    <div class="joystick-info">←左转 →右转</div>
+                </div>
+                <div class="gear-section">
+                    <div class="joystick-label">速度档位</div>
+                    <div class="gear-buttons">
+                        <button class="gear-btn active" data-gear="1" onclick="setGear(1)">1档</button>
+                        <button class="gear-btn" data-gear="2" onclick="setGear(2)">2档</button>
+                        <button class="gear-btn" data-gear="3" onclick="setGear(3)">3档</button>
+                    </div>
+                    <div class="gear-speed-info" id="gearSpeedInfo">vx:0.3 vy:0.2 wz:0.4</div>
+                    <button class="emergency-btn" onclick="emergencyStop()">🛑 急停</button>
+                    <div class="velocity-display" id="velocityDisplay">
+                        <span>vx: 0.000</span>
+                        <span>vy: 0.000</span>
+                        <span>wz: 0.000</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FSM模式切换 -->
+            <div class="fsm-section">
+                <h3>🔄 运动模式切换</h3>
+                <div class="fsm-groups">
+                    <div class="fsm-group">
+                        <h4>基础模式</h4>
+                        <div class="fsm-group-buttons">
+                            <button class="fsm-btn group-basic" onclick="setFsm(0)">零力矩</button>
+                            <button class="fsm-btn group-basic" onclick="setFsm(1)">阻尼模式</button>
+                        </div>
+                    </div>
+                    <div class="fsm-group">
+                        <h4>姿态模式</h4>
+                        <div class="fsm-group-buttons">
+                            <button class="fsm-btn group-pose" onclick="setFsm(3)">坐下</button>
+                            <button class="fsm-btn group-pose" onclick="setFsm(4)">预备模式</button>
+                            <button class="fsm-btn group-pose" onclick="setFsm(702)">躺→站</button>
+                            <button class="fsm-btn group-pose" onclick="setFsm(706)">蹲↔站</button>
+                        </div>
+                    </div>
+                    <div class="fsm-group">
+                        <h4>运动模式</h4>
+                        <div class="fsm-group-buttons">
+                            <button class="fsm-btn group-motion" onclick="setFsm(200)">启动运动</button>
+                            <button class="fsm-btn group-motion" onclick="setFsm(501)">常规走路</button>
+                            <button class="fsm-btn group-motion" onclick="setFsm(802)">走跑模式</button>
+                            <button class="fsm-btn group-motion" onclick="setFsm(503)">舞蹈模式</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 运动控制日志显示区域 -->
+            <div id="locoLogContainer" style="display: none; margin-top: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <strong>📜 运动控制日志</strong>
+                    <button class="btn btn-sm btn-secondary" onclick="clearLocoLog()" style="padding: 5px 10px; font-size: 0.8em;">清空日志</button>
+                </div>
+                <div id="locoLogDisplay" style="background: #1a1a2e; color: #e2e8f0; padding: 15px; border-radius: 10px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 0.9em; white-space: pre-wrap;"></div>
+            </div>
+        </div>
+
+        <!-- 虚拟遥控器模块 -->
+        <div class="module-panel">
+            <h2>🎮 虚拟遥控器</h2>
+
+            <!-- 状态栏 + 急停按钮 -->
+            <div class="vr-status-bar">
+                <div class="vr-status-indicator">
+                    <div class="vr-status-dot" id="vrStatusDot"></div>
+                    <span id="vrStatusText">正在初始化 (eth0)...</span>
+                </div>
+                <button class="vr-emergency-btn" id="vrEmergencyBtn" onclick="vrEmergencyStop()">紧急停止</button>
+            </div>
+
+            <!-- 遥控器主体 -->
+            <div class="vr-controller">
+
+                <!-- 肩键 L1/R1 -->
+                <div class="vr-shoulder-row">
+                    <button class="vr-shoulder-btn" data-vr-btn="L1">L1</button>
+                    <button class="vr-shoulder-btn" data-vr-btn="R1">R1</button>
+                </div>
+
+                <!-- 肩键 L2/R2 -->
+                <div class="vr-shoulder-row">
+                    <button class="vr-shoulder-btn" data-vr-btn="L2">L2</button>
+                    <button class="vr-shoulder-btn" data-vr-btn="R2">R2</button>
+                </div>
+
+                <!-- 功能键 -->
+                <div class="vr-func-row">
+                    <button class="vr-func-btn" data-vr-btn="F1">F1</button>
+                    <button class="vr-func-btn" data-vr-btn="Select">Select</button>
+                    <button class="vr-func-btn" data-vr-btn="Start">Start</button>
+                    <button class="vr-func-btn" data-vr-btn="F3">F3</button>
+                </div>
+
+                <!-- 主控制区：左摇杆 + 方向键/ABXY + 右摇杆 -->
+                <div class="vr-main-controls">
+                    <!-- 左摇杆 -->
+                    <div>
+                        <div class="vr-joystick-area" id="vrLeftJoystick">
+                            <div class="vr-joystick-base"></div>
+                            <div class="vr-joystick-thumb" id="vrLeftThumb"></div>
+                        </div>
+                        <div class="vr-joystick-label">左摇杆</div>
+                        <div class="vr-joystick-value" id="vrLeftValue">X:0.00 Y:0.00</div>
+                    </div>
+
+                    <!-- 中间：方向键 + ABXY -->
+                    <div class="vr-center-controls">
+                        <!-- 方向键 -->
+                        <div class="vr-dpad">
+                            <div></div>
+                            <button class="vr-dpad-btn" data-vr-btn="Up">&#9650;</button>
+                            <div></div>
+                            <button class="vr-dpad-btn" data-vr-btn="Left">&#9668;</button>
+                            <div class="vr-dpad-center"></div>
+                            <button class="vr-dpad-btn" data-vr-btn="Right">&#9658;</button>
+                            <div></div>
+                            <button class="vr-dpad-btn" data-vr-btn="Down">&#9660;</button>
+                            <div></div>
+                        </div>
+                        <!-- ABXY -->
+                        <div class="vr-abxy">
+                            <div></div>
+                            <button class="vr-abxy-btn vr-btn-y" data-vr-btn="Y">Y</button>
+                            <div></div>
+                            <button class="vr-abxy-btn vr-btn-x" data-vr-btn="X">X</button>
+                            <div></div>
+                            <button class="vr-abxy-btn vr-btn-b" data-vr-btn="B">B</button>
+                            <div></div>
+                            <button class="vr-abxy-btn vr-btn-a" data-vr-btn="A">A</button>
+                            <div></div>
+                        </div>
+                    </div>
+
+                    <!-- 右摇杆 -->
+                    <div>
+                        <div class="vr-joystick-area" id="vrRightJoystick">
+                            <div class="vr-joystick-base"></div>
+                            <div class="vr-joystick-thumb" id="vrRightThumb"></div>
+                        </div>
+                        <div class="vr-joystick-label">右摇杆</div>
+                        <div class="vr-joystick-value" id="vrRightValue">X:0.00 Y:0.00</div>
+                    </div>
+                </div>
+
+                <!-- 状态显示 -->
+                <div class="vr-state-display" id="vrStateDisplay">
+                    <span class="vr-state-label">LX:</span><span class="vr-state-value" id="vrDispLx">0.00</span>
+                    <span class="vr-state-label">RX:</span><span class="vr-state-value" id="vrDispRx">0.00</span>
+                    <span class="vr-state-label">LY:</span><span class="vr-state-value" id="vrDispLy">0.00</span>
+                    <span class="vr-state-label">RY:</span><span class="vr-state-value" id="vrDispRy">0.00</span>
+                    <span class="vr-state-label">Keys:</span><span class="vr-state-value" id="vrDispKeys">0x0000</span>
+                    <span class="vr-state-label">Rate:</span><span class="vr-state-value" id="vrDispRate">--</span>
+                </div>
+
+                <div class="vr-keyboard-hint">
+                    键盘: WASD=左摇杆 | 方向键=右摇杆 | Q/E=L1/R1 | Z/C=L2/R2 | 1/2/3/4=A/B/X/Y | Space=紧急停止
+                </div>
+
+                <!-- 组合键区域 -->
+                <div class="vr-combo-section">
+                    <div class="vr-combo-section-title">&#127926; 舞蹈模式 Dance Mode (先进入舞蹈模式: R1+B)</div>
+
+                    <div class="vr-combo-group">
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["R1","Select"]' onclick="vrPressCombo(this)"><span>功夫</span><span class="vr-combo-keys">R1+Sel</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["R1","Up"]' onclick="vrPressCombo(this)"><span>舞蹈1</span><span class="vr-combo-keys">R1+&#8593;</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["R1","Left"]' onclick="vrPressCombo(this)"><span>舞蹈2</span><span class="vr-combo-keys">R1+&#8592;</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["R1","Right"]' onclick="vrPressCombo(this)"><span>舞蹈3</span><span class="vr-combo-keys">R1+&#8594;</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["R1","Down"]' onclick="vrPressCombo(this)"><span>机械舞3</span><span class="vr-combo-keys">R1+&#8595;</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["R2","Up"]' onclick="vrPressCombo(this)"><span>截拳道</span><span class="vr-combo-keys">R2+&#8593;</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["R2","Left"]' onclick="vrPressCombo(this)"><span>扭扭舞</span><span class="vr-combo-keys">R2+&#8592;</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["L1","X"]' onclick="vrPressCombo(this)"><span>机械舞1</span><span class="vr-combo-keys">L1+X</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["L1","Y"]' onclick="vrPressCombo(this)"><span>机械舞4</span><span class="vr-combo-keys">L1+Y</span></button>
+                        <button class="vr-combo-btn vr-dance-key" data-vr-combo='["L1","A"]' onclick="vrPressCombo(this)"><span>芭蕾</span><span class="vr-combo-keys">L1+A</span></button>
+                    </div>
+
+                    <div class="vr-combo-group-label">双击操作 (舞蹈紧急中断)</div>
+                    <div class="vr-combo-group">
+                        <button class="vr-combo-btn vr-dance-key" data-vr-dblclick='["Start"]' onclick="vrPressDblClick(this)"><span>舞蹈紧急中断</span><span class="vr-combo-keys">2xStart</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 键盘控制模块 -->
+        <div class="module-panel" id="keyboardModule">
+            <h2>⌨️ 键盘控制</h2>
+
+            <!-- 控制栏 -->
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
+                <button class="btn btn-success" id="kbEnableBtn" onclick="keyboardEnable()">开启键盘控制</button>
+                <button class="btn btn-danger" id="kbDisableBtn" onclick="keyboardDisable()" disabled>停止键盘控制</button>
+                <div id="kbStatusIndicator" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; background: #374151; font-size: 0.85em;">
+                    <span id="kbStatusDot" style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span>
+                    <span id="kbStatusText">未启用</span>
+                </div>
+                <span id="kbModeTag" style="padding: 3px 10px; border-radius: 12px; background: #3b82f6; color: white; font-size: 0.8em; display: none;">Arm</span>
+            </div>
+
+            <!-- 状态显示区 -->
+            <div id="kbdStatusPanel" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 12px; padding: 15px; margin-bottom: 15px; color: #e2e8f0; font-family: monospace; font-size: 0.85em; display: none;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <div><strong style="color:#94a3b8">模式:</strong> <span id="kbModeDisplay">-</span></div>
+                    <div><strong style="color:#94a3b8">档位:</strong> <span id="kbGearDisplay">1(低速)</span></div>
+                    <div><strong style="color:#94a3b8">目标:</strong> <span id="kbTargetDisplay">(0.000, 0.000, 0.000)</span></div>
+                    <div><strong style="color:#94a3b8">实际:</strong> <span id="kbSendDisplay">(0.000, 0.000, 0.000)</span></div>
+                    <div><strong style="color:#94a3b8">机械臂:</strong> <span id="kbArmDisplay">空闲</span></div>
+                    <div><strong style="color:#94a3b8">按键日志:</strong> <span id="kbKeyLogDisplay" style="color:#4ade80;">-</span></div>
+                </div>
+            </div>
+
+            <!-- 按键映射说明 -->
+            <div style="background: #f8fafc; border-radius: 12px; padding: 15px;">
+                <h4 style="margin-bottom: 10px; color: #334155;">📋 按键说明</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; font-size: 0.88em;">
+                    <!-- 运动控制 -->
+                    <div style="background: #eff6ff; padding: 10px; border-radius: 8px;">
+                        <strong style="color: #2563eb;">🏃 运动控制</strong>
+                        <table style="width:100%; margin-top:5px; border-collapse:collapse;">
+                            <tr><td style="padding:2px 4px;"><kbd>W</kbd>/<kbd>S</kbd></td><td>前进/后退</td></tr>
+                            <tr><td style="padding:2px 4px;"><kbd>A</kbd>/<kbd>D</kbd></td><td>左移/右移</td></tr>
+                            <tr><td style="padding:2px 4px;"><kbd>Q</kbd>/<kbd>E</kbd></td><td>左转/右转</td></tr>
+                            <tr><td style="padding:2px 4px;"><kbd>Space</kbd></td><td style="color:#dc2626;">急停</td></tr>
+                            <tr><td style="padding:2px 4px;"><kbd>,</kbd>/<kbd>.</kbd></td><td>降档/升档</td></tr>
+                            <tr><td style="padding:2px 4px;"><kbd>R</kbd></td><td>速度归零</td></tr>
+                            <tr><td style="padding:2px 4px;"><kbd>T</kbd></td><td>舞蹈模式</td></tr>
+                        </table>
+                    </div>
+                    <!-- 模式切换 -->
+                    <div style="background: #fef3c7; padding: 10px; border-radius: 8px;">
+                        <strong style="color: #d97706;">🔀 模式切换</strong>
+                        <p style="margin: 5px 0; font-size: 0.95em;"><kbd>F</kbd> 切换 Arm / FSM 模式</p>
+                        <hr style="margin:5px 0; border-color:#fde68a;">
+                        <strong style="font-size:0.9em;">FSM模式 (数字键):</strong>
+                        <table style="width:100%; margin-top:5px; border-collapse:collapse; font-size:0.92em;">
+                            <tr><td style="padding:1px 4px;"><kbd>0</kbd></td><td>零力矩</td><td style="padding:1px 4px;"><kbd>5</kbd></td><td>走路</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>1</kbd></td><td>阻尼</td><td style="padding:1px 4px;"><kbd>6</kbd></td><td>启动运动</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>3</kbd></td><td>坐下</td><td style="padding:1px 4px;"><kbd>7</kbd></td><td>躺→站</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>4</kbd></td><td>预备</td><td style="padding:1px 4px;"><kbd>8</kbd></td><td>蹲↔站</td></tr>
+                            <tr><td colspan="2"></td><td style="padding:1px 4px;"><kbd>9</kbd></td><td>走跑模式</td></tr>
+                        </table>
+                    </div>
+                    <!-- 机械臂动作 -->
+                    <div style="background: #fce7f3; padding: 10px; border-radius: 8px;">
+                        <strong style="color: #db2777;">🤖 Arm模式 (默认):</strong>
+                        <table style="width:100%; margin-top:5px; border-collapse:collapse; font-size:0.9em;">
+                            <tr><td style="padding:1px 4px;"><kbd>0</kbd></td><td>释放手臂</td><td style="padding:1px 4px;"><kbd>5</kbd></td><td>鼓掌</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>1</kbd></td><td>握手</td><td style="padding:1px 4px;"><kbd>6</kbd></td><td>低位挥手</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>2</kbd></td><td>举手你好</td><td style="padding:1px 4px;"><kbd>7</kbd></td><td>左飞吻</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>3</kbd></td><td>拥抱</td><td style="padding:1px 4px;"><kbd>8</kbd></td><td>比心</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>4</kbd></td><td>拜拜挥手</td><td style="padding:1px 4px;"><kbd>9</kbd></td><td>右比心</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>Z</kbd></td><td>双手举起</td><td style="padding:1px 4px;"><kbd>B</kbd></td><td>右飞吻</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>X</kbd></td><td>迪迦光线</td><td style="padding:1px 4px;"><kbd>N</kbd></td><td>双手飞吻</td></tr>
+                            <tr><td style="padding:1px 4px;"><kbd>C</kbd></td><td>右手举起</td><td style="padding:1px 4px;"><kbd>V</kbd></td><td>拒绝</td></tr>
+                        </table>
+                    </div>
+                </div>
+                <p style="margin-top: 10px; font-size: 0.82em; color: #64748b;">
+                    💡 提示：点击页面任意位置后按键盘即可控制。松开方向键后速度自动衰减归零。
+                </p>
+            </div>
+        </div>
+
+        <!-- 语音动作输出模块 -->
+        <div class="module-panel" id="voiceActionModule">
+            <h2>🎤 语音动作输出</h2>
+
+            <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 15px; flex-wrap: wrap;">
+                <span id="vaStatusDot" style="width: 10px; height: 10px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
+                <span id="vaStatusText" style="font-size: 0.9em; color: #666;">等待初始化...</span>
+            </div>
+
+            <!-- 动作选择 -->
+            <div style="background: #f8fafc; border-radius: 12px; padding: 15px; margin-bottom: 15px;">
+                <h4 style="margin-bottom: 12px; color: #334155;">🎬 选择动作</h4>
+                <div id="vaActionGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px;">
+                    <!-- 动作按钮由JS动态生成 -->
+                </div>
+            </div>
+
+            <!-- 文本输入 & 预设语音 -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                <!-- 自定义文本输入 -->
+                <div style="background: #eff6ff; border-radius: 12px; padding: 15px;">
+                    <h4 style="margin-bottom: 10px; color: #2563eb;">✏️ 输入文本</h4>
+                    <textarea id="vaTextInput" rows="3" placeholder="请输入要朗读的文本内容..."
+                              style="width: 100%; padding: 10px; border: 2px solid #bfdbfe; border-radius: 8px; font-size: 0.95em; resize: vertical; box-sizing: border-box;"></textarea>
+                </div>
+
+                <!-- 预设语音模板 -->
+                <div style="background: #fef3c7; border-radius: 12px; padding: 15px;">
+                    <h4 style="margin-bottom: 10px; color: #d97706;">📝 预设语音</h4>
+                    <div id="vaPresetContainer">
+                        <!-- 预设分类由JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 执行按钮区 -->
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+                <button class="btn btn-primary" id="vaExecuteBtn" onclick="voiceExecute()" style="font-size: 1em; padding: 10px 24px;">▶️ 动作 + 语音</button>
+                <button class="btn btn-info" id="vaSpeakBtn" onclick="voiceSpeakOnly()">🔊 仅播放语音</button>
+                <button class="btn btn-success" id="vaActionBtn" onclick="voiceActionOnly()">🎬 仅执行动作</button>
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 0.9em; color: #555; cursor: pointer;">
+                    <input type="checkbox" id="vaAutoReset" checked> 自动复位手臂
+                </label>
+                <button class="btn btn-warning" onclick="voiceResetArm()" style="margin-left: auto;">🔄 复位手臂</button>
+            </div>
+
+            <!-- 执行状态/结果显示 -->
+            <div id="vaResultPanel" style="background: linear-gradient(135deg, #1e293b, #0f172a); border-radius: 12px; padding: 15px; display: none; color: #e2e8f0; font-family: monospace; font-size: 0.85em;">
+                <div id="vaResultContent"></div>
+            </div>
+        </div>
+
+        <!-- 建图模块 -->
+        <div class="module-panel">
+            <h2>🗺️ 建图与地图管理</h2>
+
+            <!-- 建图控制 -->
+            <h3 style="color: #555; margin-bottom: 12px; font-size: 1.1em;">📍 SLAM 建图</h3>
+            <div class="module-buttons">
+                <button class="btn btn-info" id="startMappingBtn" onclick="startMapping()">🗺️ 开始建图</button>
+                <button class="btn btn-danger" id="stopMappingBtn" onclick="stopMapping()" disabled>⏹️ 停止建图</button>
+            </div>
+            <p style="color: #666; font-size: 0.9em;">
+                <strong>建图状态：</strong><span id="mappingStatusDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未启动</span>
+            </p>
+
+            <!-- 建图 RViz 画面显示区域 -->
+            <div class="rviz-container" id="mappingRvizContainer" style="display: none; margin-top: 20px;">
+                <div class="rviz-header">
+                    <span>📡 建图 RViz 实时画面（可交互操作）</span>
+                    <button class="btn btn-danger" onclick="stopMapping()">停止建图</button>
+                </div>
+                <div class="rviz-frame">
+                    <iframe id="mappingRvizIframe" allow="clipboard-read; clipboard-write" title="Mapping RViz VNC"></iframe>
+                    <div class="rviz-placeholder" id="mappingRvizPlaceholder">
+                        <div class="loading-spinner"></div>
+                        <p>正在连接建图 VNC...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 保存地图 -->
+            <div style="margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 10px;">
+                <h3 style="color: #555; margin-bottom: 12px; font-size: 1.1em;">💾 保存地图</h3>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
+                    <label for="mapNameInput" style="font-weight: bold; color: #333;">地图名称：</label>
+                    <input type="text" id="mapNameInput" placeholder="例如：mymap、office、warehouse"
+                           style="flex: 1; min-width: 200px; padding: 8px 12px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 0.95em;"
+                           value="mymap">
+                    <button class="btn btn-warning" onclick="saveMap()">保存地图</button>
+                </div>
+                <p style="color: #888; font-size: 0.85em; margin: 0;">
+                    💡 地图将保存到 /home/unitree/tang/map/ 目录，支持自定义名称
+                </p>
+            </div>
+
+            <!-- 选择地图用于导航 -->
+            <div style="margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 10px;">
+                <h3 style="color: #555; margin-bottom: 12px; font-size: 1.1em;">🎯 选择导航地图</h3>
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;">
+                    <label for="mapSelect" style="font-weight: bold; color: #333;">可用地图：</label>
+                    <select id="mapSelect" style="flex: 1; min-width: 200px; padding: 8px 12px; border: 2px solid #bae6fd; border-radius: 8px; font-size: 0.95em;" onchange="onMapSelectChange()">
+                        <option value="">-- 加载中... --</option>
+                    </select>
+                    <button class="btn btn-success" onclick="selectMapForNavigation()">✓ 选择此地图</button>
+                    <button class="btn btn-primary" onclick="loadMapList()">🔄 刷新列表</button>
+                </div>
+                
+                <!-- 地图原点信息显示 -->
+                <div id="mapOriginInfo" style="margin-top: 12px; padding: 12px; background: linear-gradient(135deg, #fef3c720, #fde68a20); border-radius: 8px; border: 2px dashed #f59e0b50; display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #d97706; font-size: 0.95em;">📍 当前地图原点</strong>
+                            <span id="mapOriginName" style="margin-left: 10px; color: #555; font-size: 0.9em;"></span>
+                        </div>
+                        <div id="mapOriginCoords" style="font-family: monospace; font-size: 0.95em; color: #059669; font-weight: bold;"></div>
+                    </div>
+                    <div id="mapOriginDesc" style="color: #888; font-size: 0.85em; margin-top: 6px;"></div>
+                </div>
+                
+                <p style="color: #888; font-size: 0.85em; margin: 10px 0 0 0;">
+                    💡 选择地图后，启动导航和重定位时会自动使用该地图的原点坐标
+                </p>
+            </div>
+        </div>
+
+        <!-- 导航模块 -->
+        <div class="module-panel">
+            <h2>🗺️ 导航控制</h2>
+            <div class="module-buttons">
+                <button class="btn btn-success" id="startNavBtn" onclick="startNavigation()">启动导航</button>
+                <button class="btn btn-danger" id="stopNavBtn" onclick="stopNavigation()" disabled>停止导航</button>
+                <button class="btn btn-primary" onclick="executeRelocate()">重定位</button>
+            </div>
+
+            <!-- 一键展览 -->
+            <div class="module-buttons" style="margin-top: 15px;">
+                <button class="btn btn-purple" id="startExhibitionBtn" onclick="startExhibition()">🎬 一键展览</button>
+                <button class="btn btn-danger" id="stopExhibitionBtn" onclick="stopExhibition()" disabled>⏹️ 停止展览</button>
+            </div>
+            <p style="color: #666; font-size: 0.9em;">
+                <strong>展览状态：</strong><span id="exhibitionStatusDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未启动</span>
+            </p>
+
+            <!-- RViz 画面显示区域 -->
+            <div class="rviz-container" id="rvizContainer" style="display: none;">
+                <div class="rviz-header">
+                    <span>📡 RViz 实时画面（可交互操作）</span>
+                    <button class="btn btn-danger" onclick="stopCurrentRvizOperation()">停止当前操作</button>
+                </div>
+                <div class="rviz-frame">
+                    <iframe id="rvizIframe" allow="clipboard-read; clipboard-write" title="RViz VNC"></iframe>
+                    <div class="rviz-placeholder" id="rvizPlaceholder">
+                        <div class="loading-spinner"></div>
+                        <p>正在连接 VNC...</p>
+                    </div>
+                </div>
+            </div>
+            <p style="color: #666; font-size: 0.9em; margin-top: 15px;">
+                <strong>导航状态：</strong><span id="navigationStatusDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未启动</span>
+                <span style="margin-left: 20px;">
+                    <strong>RViz：</strong><span id="rvizStatusDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未启动</span>
+                </span>
+                <span style="margin-left: 20px;">
+                    <strong>当前地图：</strong><span id="currentMapDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未选择</span>
+                </span>
+            </p>
+        </div>
+
+        <!-- 展览与巡逻路径创建模块 -->
+        <div class="module-panel">
+            <h2>🎯 展览与巡逻 - 路径创建</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- 左侧：位置记录与路径点列表 -->
+                <div>
+                    <!-- 当前位置显示 -->
+                    <div style="margin-bottom: 15px; padding: 15px; background: linear-gradient(135deg, #667eea15, #764ba215); border-radius: 10px; border: 2px solid #667eea30;">
+                        <h3 style="color: #667eea; margin-bottom: 10px; font-size: 1em;">📍 G1 当前位置</h3>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+                            <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+                                <div style="color: #888; font-size: 0.8em;">X</div>
+                                <div id="currentPosX" style="color: #333; font-size: 1.1em; font-weight: bold; font-family: monospace;">--</div>
+                            </div>
+                            <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+                                <div style="color: #888; font-size: 0.8em;">Y</div>
+                                <div id="currentPosY" style="color: #333; font-size: 1.1em; font-weight: bold; font-family: monospace;">--</div>
+                            </div>
+                            <div style="background: white; padding: 8px; border-radius: 6px; text-align: center;">
+                                <div style="color: #888; font-size: 0.8em;">Yaw</div>
+                                <div id="currentPosYaw" style="color: #333; font-size: 1.1em; font-weight: bold; font-family: monospace;">--</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-primary" onclick="getCurrentPosition()" style="flex: 1; padding: 8px; font-size: 0.85em;" id="getPosBtn">🔄 获取位置</button>
+                            <button class="btn btn-success" onclick="recordCurrentPosition()" style="flex: 1; padding: 8px; font-size: 0.85em;" id="recordPosBtn">📌 记录此位置</button>
+                        </div>
+                    </div>
+
+                    <!-- 路径点列表 -->
+                    <div style="padding: 15px; background: #f0f9ff; border-radius: 10px;">
+                        <h3 style="color: #0369a1; margin-bottom: 10px; font-size: 1em;">📋 路径点列表 (<span id="waypointsCount">0</span>个)</h3>
+                        <div style="max-height: 350px; overflow-y: auto;" id="waypointsList">
+                            <p style="color: #888; font-size: 0.85em; text-align: center; padding: 20px;">暂无路径点，请记录当前位置或手动添加</p>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-warning" onclick="clearAllWaypoints()" style="padding: 6px 12px; font-size: 0.8em;">🗑️ 清空</button>
+                            <button class="btn btn-info" onclick="showManualAddDialog()" style="padding: 6px 12px; font-size: 0.8em;">✏️ 手动添加</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧：路径点详情编辑 & 路径管理 -->
+                <div>
+                    <!-- 路径点详情编辑 -->
+                    <div style="margin-bottom: 15px; padding: 15px; background: #fef3c7; border-radius: 10px; border: 2px solid #f59e0b30;">
+                        <h3 style="color: #d97706; margin-bottom: 10px; font-size: 1em;">✏️ 编辑路径点 (<span id="editingPointId">未选择</span>)</h3>
+                        
+                        <div id="pointEditor" style="display: none;">
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 0.8em; color: #666; font-weight: bold;">X 坐标</label>
+                                    <input type="number" id="editX" step="0.0001" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.8em; color: #666; font-weight: bold;">Y 坐标</label>
+                                    <input type="number" id="editY" step="0.0001" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                                </div>
+                                <div>
+                                    <label style="font-size: 0.8em; color: #666; font-weight: bold;">Yaw 角度</label>
+                                    <input type="number" id="editYaw" step="0.0001" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace;">
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.8em; color: #666; font-weight: bold; display: block; margin-bottom: 5px;">动作选择</label>
+                                <select id="editActionId" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px;">
+                                    <option value="25">无动作 (仅语音)</option>
+                                    <option value="0">释放机械臂</option>
+                                    <option value="1">握手</option>
+                                    <option value="2">手举高（你好）</option>
+                                    <option value="3">拥抱</option>
+                                    <option value="4">挥手</option>
+                                    <option value="5">鼓掌</option>
+                                    <option value="6">面部挥手</option>
+                                    <option value="7">左边亲吻</option>
+                                    <option value="8">比心</option>
+                                    <option value="9">右边比心</option>
+                                    <option value="10">双手举起</option>
+                                    <option value="11">X光</option>
+                                    <option value="12">右手举起</option>
+                                    <option value="13">拒绝</option>
+                                    <option value="14">右边亲吻</option>
+                                    <option value="15">双手亲吻</option>
+                                </select>
+                            </div>
+
+                            <div style="margin-bottom: 10px;">
+                                <label style="font-size: 0.8em; color: #666; font-weight: bold; display: block; margin-bottom: 5px;">语音内容 (多条)</label>
+                                <div id="sayTextsContainer">
+                                    <textarea id="editSayText1" placeholder="输入第1条语音内容..." rows="2" style="width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; resize: vertical;"></textarea>
+                                </div>
+                                <button class="btn btn-info" onclick="addSayTextField()" style="padding: 4px 10px; font-size: 0.75em; margin-top: 5px;">➕ 添加语音</button>
+                            </div>
+
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-success" onclick="saveWaypointEdit()" style="flex: 1; padding: 8px; font-size: 0.85em;">💾 保存修改</button>
+                                <button class="btn btn-danger" onclick="deleteCurrentWaypoint()" style="padding: 8px; font-size: 0.85em;">🗑️ 删除</button>
+                            </div>
+                        </div>
+                        
+                        <div id="noPointSelected" style="text-align: center; color: #888; padding: 20px;">
+                            请从左侧列表选择一个路径点进行编辑
+                        </div>
+                    </div>
+
+                    <!-- 路径保存与管理 -->
+                    <div style="padding: 15px; background: #dcfce7; border-radius: 10px; border: 2px solid #22c55e30;">
+                        <h3 style="color: #16a34a; margin-bottom: 10px; font-size: 1em;">💾 保存路径</h3>
+                        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                            <input type="text" id="pathNameInput" placeholder="输入路径名称..." style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                            <button class="btn btn-success" onclick="saveExhibitionPath()" style="padding: 8px 15px; font-size: 0.85em;">💾 保存</button>
+                        </div>
+
+                        <h3 style="color: #16a34a; margin: 15px 0 10px 0; font-size: 1em;">📂 已保存的路径</h3>
+                        <div style="max-height: 200px; overflow-y: auto; margin-bottom: 10px;" id="savedPathsList">
+                            <p style="color: #888; font-size: 0.85em; text-align: center; padding: 15px;">暂无已保存的路径</p>
+                        </div>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" onclick="loadSavedPathsList()" style="padding: 6px 12px; font-size: 0.8em;">🔄 刷新列表</button>
+                            <button class="btn btn-purple" onclick="executeSavedPath()" id="executePathBtn" disabled style="padding: 6px 12px; font-size: 0.8em;">▶️ 执行选中路径</button>
+                            <button class="btn btn-danger" onclick="stopRunningPath()" id="stopPathBtn" disabled style="padding: 6px 12px; font-size: 0.8em;">⏹️ 中断执行</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI交互模块 -->
+        <div class="module-panel">
+            <h2>🤖 AI交互</h2>
+            <div class="module-buttons">
+                <button class="btn btn-info" id="startXiaoyeBtn" onclick="startXiaoye()">启动小野AI</button>
+                <button class="btn btn-danger" id="stopXiaoyeBtn" onclick="stopXiaoye()" disabled>停止小野AI</button>
+            </div>
+            <p style="color: #666; font-size: 0.9em;">
+                <strong>状态：</strong><span id="xiaoyeStatusDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未启动</span>
+            </p>
+            <p style="color: #888; font-size: 0.85em; margin-top: 10px; background: #f8fafc; padding: 10px; border-radius: 8px;">
+                💡 启动小野AI后，可使用唤醒词与机器人进行语音交互
+            </p>
+        </div>
+
+        <!-- 人脸识别模块 -->
+        <div class="module-panel">
+            <h2>👤 人脸识别 (拍照→识别→挥手+语音)</h2>
+            <div class="module-buttons">
+                <button class="btn btn-success" id="startFaceGreetBtn" onclick="startFaceGreet()">启动人脸识别</button>
+                <button class="btn btn-danger" id="stopFaceGreetBtn" onclick="stopFaceGreet()" disabled>停止人脸识别</button>
+                <button class="btn btn-primary" onclick="refreshFaceGreetLogs()">🔄 刷新日志</button>
+            </div>
+            <p style="color: #666; font-size: 0.9em;">
+                <strong>状态：</strong><span id="faceGreetStatusDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未启动</span>
+            </p>
+            <p style="color: #888; font-size: 0.85em; margin-top: 10px; background: #f8fafc; padding: 10px; border-radius: 8px;">
+                💡 流程：D435i 拍照 → 百度 API 识别人名 → 执行挥手动作 → 语音播报"你好，{姓名}！"<br>
+                ⚠️ 与"手势识别"共用 RealSense 相机，二者不可同时运行。
+            </p>
+            <div class="face-greet-log-box">
+                <div class="face-greet-log-title">📷 人脸识别日志</div>
+                <div class="face-greet-log-container" id="faceGreetLogContainer">
+                    <p style="color: #888; font-size: 0.85em; text-align: center; padding: 20px;">点击"启动人脸识别"开始</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 手势识别模块 -->
+        <div class="module-panel">
+            <h2>✋ 手势识别 (五模式: 控制/跟随/走近/导航/问候)</h2>
+            <div class="module-buttons">
+                <button class="btn btn-success" id="startGestureCtrlBtn" onclick="startGestureControl()">启动手势识别</button>
+                <button class="btn btn-danger" id="stopGestureCtrlBtn" onclick="stopGestureControl()" disabled>停手势识别</button>
+                <button class="btn btn-primary" onclick="refreshGestureControlLogs()">🔄 刷新日志</button>
+            </div>
+            <p style="color: #666; font-size: 0.9em;">
+                <strong>状态：</strong><span id="gestureCtrlStatusDisplay" style="background: rgba(255,255,255,0.1); padding: 5px 15px; border-radius: 20px;">未启动</span>
+            </p>
+
+            <!-- 模式切换按键 (向子进程 stdin 发送按键) -->
+            <div class="gesture-key-section">
+                <div class="gesture-key-title">🎮 模式切换 / 启停 (等价于键盘 R/1/2/3/4/5/Q)</div>
+                <div class="gesture-key-buttons">
+                    <button class="btn btn-info" onclick="gestureSendKey('R')">▶️/⏸️ R 启停识别</button>
+                    <button class="btn btn-primary" onclick="gestureSendKey('1')">Mode1 手势控制</button>
+                    <button class="btn btn-primary" onclick="gestureSendKey('2')">Mode2 跟随</button>
+                    <button class="btn btn-primary" onclick="gestureSendKey('3')">Mode3 走近+握手</button>
+                    <button class="btn btn-primary" onclick="gestureSendKey('4')">Mode4 手势导航</button>
+                    <button class="btn btn-primary" onclick="gestureSendKey('5')">Mode5 人脸问候</button>
+                    <button class="btn btn-danger" onclick="gestureSendKey('Q')">⏹ Q 退出</button>
+                </div>
+            </div>
+
+            <!-- 五种模式说明 -->
+            <div class="gesture-modes-info">
+                <div class="gesture-mode-card"><strong>Mode 1</strong> 👍握手 / 👌释放手臂</div>
+                <div class="gesture-mode-card"><strong>Mode 2</strong> ✊握拳→跟随 (保持0.6m)</div>
+                <div class="gesture-mode-card"><strong>Mode 3</strong> ✊握拳→走到0.5-0.6m→握手</div>
+                <div class="gesture-mode-card"><strong>Mode 4</strong> 👈左转 / 👉右转 / ✊前进 / 🖐后退</div>
+                <div class="gesture-mode-card"><strong>Mode 5</strong> 👤检测人脸→走近0.5m+居中→握手+你好</div>
+            </div>
+
+            <p style="color: #888; font-size: 0.85em; margin-top: 10px; background: #f8fafc; padding: 10px; border-radius: 8px;">
+                💡 启动后默认处于 Mode1 且识别暂停，按 R 开始识别，再按切换模式。<br>
+                ⚠️ 与"人脸识别"共用 RealSense 相机，二者不可同时运行。
+            </p>
+            <div class="face-greet-log-box">
+                <div class="face-greet-log-title">✋ 手势识别日志</div>
+                <div class="face-greet-log-container" id="gestureCtrlLogContainer">
+                    <p style="color: #888; font-size: 0.85em; text-align: center; padding: 20px;">点击"启动手势识别"开始</p>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="log-panel">
+            <div class="log-title">
+                📋 操作日志
+                <button class="btn btn-primary" onclick="clearLogs()" style="margin-left: auto; padding: 5px 15px; font-size: 0.8em;">
+                    清空日志
+                </button>
+            </div>
+            <div class="log-container" id="logContainer">
+                <!-- 日志条目将在这里动态添加 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket;
+        let vrDdsReady = false;  // 虚拟遥控器DDS就绪状态
+        let vrSocket = null;     // 虚拟遥控器WebSocket引用
+        const vrPressedButtons = new Set();  // 虚拟遥控器按键状态
+        let isExecuting = false;
+        let currentExecutingCard = null;
+
+        // 初始化 WebSocket 连接
+        function initSocket() {
+            window.socket = socket = io.connect('http://' + window.location.host);
+
+            socket.on('connect', function() {
+                addLog('系统已连接', 'success');
+                document.getElementById('connectionStatus').style.background = '#4ade80';
+                document.getElementById('connectionText').textContent = '已连接';
+                updateSystemStatus('就绪');
+
+                // 自动加载地图列表
+                loadMapList();
+
+                // 虚拟遥控器：连接成功后自动初始化
+                vrInitSocketEvents(socket);
+                setTimeout(function() { vrAutoInit(); }, 500);
+            });
+
+            socket.on('disconnect', function() {
+                addLog('系统已断开连接', 'error');
+                document.getElementById('connectionStatus').style.background = '#ef4444';
+                document.getElementById('connectionText').textContent = '已断开';
+                updateSystemStatus('断开连接');
+            });
+
+            socket.on('action_status', function(data) {
+                handleActionStatus(data);
+            });
+
+            socket.on('system_message', function(data) {
+                addLog(data.message, 'info');
+            });
+
+            socket.on('navigation_status', function(data) {
+                if (data.status === 'started') {
+                    updateNavigationStatus(true);
+                } else if (data.status === 'stopped') {
+                    updateNavigationStatus(false);
+                }
+            });
+
+            socket.on('rviz_status', function(data) {
+                if (data.status === 'started') {
+                    updateRvizStatus(true);
+                } else if (data.status === 'stopped') {
+                    updateRvizStatus(false);
+                }
+            });
+
+            socket.on('loco_status', function(data) {
+                if (data.status === 'started') {
+                    updateLocoStatus(true);
+                } else if (data.status === 'stopped') {
+                    updateLocoStatus(false);
+                }
+            });
+
+            socket.on('loco_log', function(data) {
+                appendLocoLog(data.line);
+            });
+
+            socket.on('exhibition_status', function(data) {
+                if (data.status === 'started') {
+                    updateExhibitionStatus(true);
+                } else if (data.status === 'stopped') {
+                    updateExhibitionStatus(false);
+                }
+            });
+
+            socket.on('xiaoye_status', function(data) {
+                if (data.status === 'started') {
+                    updateXiaoyeStatus(true);
+                } else if (data.status === 'stopped') {
+                    updateXiaoyeStatus(false);
+                }
+            });
+
+            // 人脸识别模块状态
+            socket.on('face_greet_status', function(data) {
+                if (data.status === 'started') {
+                    updateFaceGreetStatus(true);
+                } else if (data.status === 'stopped') {
+                    updateFaceGreetStatus(false);
+                    if (data.message) addLog('[人脸识别] ' + data.message, 'warning');
+                }
+            });
+            // 人脸识别模块日志
+            socket.on('face_greet_log', function(data) {
+                appendFaceGreetLog(data.line);
+            });
+
+            // 手势识别模块状态
+            socket.on('gesture_control_status', function(data) {
+                if (data.status === 'started') {
+                    updateGestureControlStatus(true);
+                } else if (data.status === 'stopped') {
+                    updateGestureControlStatus(false);
+                    if (data.message) addLog('[手势识别] ' + data.message, 'warning');
+                }
+            });
+            // 手势识别模块日志
+            socket.on('gesture_control_log', function(data) {
+                appendGestureControlLog(data.line);
+            });
+
+            socket.on('mapping_status', function(data) {
+                if (data.status === 'started') {
+                    updateMappingStatus(true);
+                } else if (data.status === 'stopped') {
+                    updateMappingStatus(false);
+                }
+            });
+
+            socket.on('map_saved', function(data) {
+                addLog(data.message, data.status === 'success' ? 'success' : 'error');
+            });
+
+            socket.on('map_selected', function(data) {
+                addLog(data.message, data.status === 'success' ? 'success' : 'error');
+                if (data.status === 'success') {
+                    updateCurrentMapDisplay(data.map_name);
+                }
+            });
+        }
+
+        // 加载动作列表
+        async function loadActions() {
+            try {
+                const response = await fetch('/api/actions');
+                const actions = await response.json();
+                renderActions(actions);
+                addLog(`成功加载 ${actions.length} 个动作`, 'success');
+            } catch (error) {
+                addLog(`加载动作列表失败：${error.message}`, 'error');
+            }
+        }
+
+        // 渲染动作卡片（不显示ID）
+        function renderActions(actions) {
+            const grid = document.getElementById('actionsGrid');
+            grid.innerHTML = '';
+
+            actions.forEach(action => {
+                const card = document.createElement('div');
+                card.className = 'action-card';
+                card.id = `action-${action.id}`;
+                card.onclick = () => executeAction(action.id);
+
+                card.innerHTML = `
+                    <div class="action-name">${action.name}</div>
+                    <div class="action-description">${action.description}</div>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // 执行动作
+        function executeAction(actionId) {
+            if (isExecuting) {
+                addLog('已有动作正在执行，请稍后再试', 'warning');
+                return;
+            }
+
+            isExecuting = true;
+            currentExecutingCard = document.getElementById(`action-${actionId}`);
+
+            // 发送 WebSocket 请求
+            socket.emit('execute_action', { action_id: actionId });
+
+            addLog(`执行动作 ID: ${actionId}`, 'info');
+        }
+
+        // 处理动作状态更新
+        function handleActionStatus(data) {
+            // 获取卡片元素并检查是否存在
+            const card = document.getElementById(`action-${data.action_id}`);
+            if (!card) {
+                addLog(`警告：找不到动作卡片 ID: ${data.action_id}`, 'warning');
+                return;
+            }
+            
+            if (data.status === 'executing') {
+                // 使用 currentExecutingCard 引用，避免innerHTML修改后丢失引用
+                currentExecutingCard = card;
+                isExecuting = true;
+                
+                // 添加执行中的视觉效果（不修改innerHTML）
+                card.classList.add('executing');
+                
+                // 创建状态指示器元素
+                let statusIndicator = card.querySelector('.status-indicator');
+                if (!statusIndicator) {
+                    statusIndicator = document.createElement('div');
+                    statusIndicator.className = 'status-indicator';
+                    statusIndicator.innerHTML = '<span class="loading-spinner"></span> 执行中...';
+                    statusIndicator.style.cssText = 'margin-top: 10px; display: flex; align-items: center; gap: 8px;';
+                    card.appendChild(statusIndicator);
+                }
+                
+                updateSystemStatus(`执行中：${data.action_name}`);
+                addLog(data.message, 'info');
+            } else if (data.status === 'completed') {
+                if (currentExecutingCard) {
+                    currentExecutingCard.classList.remove('executing');
+                    currentExecutingCard.classList.add('completed');
+                    
+                    // 移除状态指示器
+                    const indicator = currentExecutingCard.querySelector('.status-indicator');
+                    if (indicator) {
+                        indicator.remove();
+                    }
+                    
+                    // 2秒后移除完成状态
+                    setTimeout(() => {
+                        if (currentExecutingCard) {
+                            currentExecutingCard.classList.remove('completed');
+                        }
+                    }, 2000);
+                }
+                updateSystemStatus('就绪');
+                addLog(data.message, 'success');
+                isExecuting = false;
+                currentExecutingCard = null;
+            } else if (data.status === 'error') {
+                if (currentExecutingCard) {
+                    currentExecutingCard.classList.remove('executing');
+                    currentExecutingCard.classList.add('error');
+                    
+                    // 移除状态指示器
+                    const indicator = currentExecutingCard.querySelector('.status-indicator');
+                    if (indicator) {
+                        indicator.remove();
+                    }
+                    
+                    // 2秒后移除错误状态
+                    setTimeout(() => {
+                        if (currentExecutingCard) {
+                            currentExecutingCard.classList.remove('error');
+                        }
+                    }, 2000);
+                }
+                updateSystemStatus('错误');
+                addLog(data.message, 'error');
+                isExecuting = false;
+                currentExecutingCard = null;
+            }
+        }
+
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const container = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString('zh-CN');
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            container.appendChild(entry);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 清空日志
+        function clearLogs() {
+            document.getElementById('logContainer').innerHTML = '';
+            addLog('日志已清空', 'info');
+        }
+
+        // 更新系统状态
+        function updateSystemStatus(status) {
+            document.getElementById('systemStatus').textContent = status;
+        }
+
+        // 停止当前动作
+        function stopCurrentAction() {
+            addLog('停止当前动作（功能开发中）', 'warning');
+        }
+
+        // 刷新状态
+        async function refreshStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+
+                document.getElementById('networkInfo').textContent = status.network_interface;
+
+                // 更新导航状态
+                updateNavigationStatus(status.navigation_running);
+
+                // 更新 RViz 状态
+                updateRvizStatus(status.rviz_streaming);
+
+                // 更新运动控制状态
+                updateLocoStatus(status.loco_running);
+
+                // 更新小野AI状态
+                updateXiaoyeStatus(status.xiaoye_running);
+
+                // 更新建图状态
+                updateMappingStatus(status.mapping_running);
+
+                // 更新当前地图显示
+                if (status.selected_map) {
+                    updateCurrentMapDisplay(status.selected_map);
+                }
+
+                addLog('状态已刷新', 'success');
+            } catch (error) {
+                addLog(`刷新状态失败：${error.message}`, 'error');
+            }
+        }
+
+        // 更新导航状态显示
+        function updateNavigationStatus(isRunning) {
+            const navStatus = document.getElementById('navigationStatus');
+            const navStatusDisplay = document.getElementById('navigationStatusDisplay');
+            const startBtn = document.getElementById('startNavBtn');
+            const stopBtn = document.getElementById('stopNavBtn');
+            
+            if (isRunning) {
+                navStatus.textContent = '运行中';
+                navStatus.style.background = '#4ade80';
+                navStatus.style.color = '#166534';
+                navStatusDisplay.textContent = '运行中';
+                navStatusDisplay.style.background = '#4ade80';
+                navStatusDisplay.style.color = '#166534';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                navStatus.textContent = '未启动';
+                navStatus.style.background = 'rgba(255,255,255,0.1)';
+                navStatus.style.color = 'white';
+                navStatusDisplay.textContent = '未启动';
+                navStatusDisplay.style.background = 'rgba(100,100,100,0.2)';
+                navStatusDisplay.style.color = '#666';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        // 更新 RViz 状态显示（导航用）
+        function updateRvizStatus(isStreaming) {
+            const rvizStatus = document.getElementById('rvizStatus');
+            const rvizStatusDisplay = document.getElementById('rvizStatusDisplay');
+            const rvizContainer = document.getElementById('rvizContainer');
+            const rvizIframe = document.getElementById('rvizIframe');
+            const rvizPlaceholder = document.getElementById('rvizPlaceholder');
+
+            if (isStreaming) {
+                rvizStatus.textContent = '运行中';
+                rvizStatus.style.background = '#4ade80';
+                rvizStatus.style.color = '#166534';
+                rvizStatusDisplay.textContent = '运行中';
+                rvizStatusDisplay.style.background = '#4ade80';
+                rvizStatusDisplay.style.color = '#166534';
+                rvizContainer.style.display = 'block';
+
+                const wsHost = window.location.hostname;
+                const wsPort = 6080;
+                rvizIframe.src = `http://${wsHost}:${wsPort}/vnc.html?autoconnect=true&resize=scale`;
+
+                rvizIframe.onload = function() {
+                    rvizPlaceholder.style.display = 'none';
+                };
+            } else {
+                rvizStatus.textContent = '未启动';
+                rvizStatus.style.background = 'rgba(255,255,255,0.1)';
+                rvizStatus.style.color = 'white';
+                rvizStatusDisplay.textContent = '未启动';
+                rvizStatusDisplay.style.background = 'rgba(100,100,100,0.2)';
+                rvizStatusDisplay.style.color = '#666';
+                rvizContainer.style.display = 'none';
+                rvizIframe.src = '';
+                rvizPlaceholder.style.display = 'block';
+            }
+        }
+
+        // 更新建图 RViz 状态显示（建图专用）
+        function updateMappingRvizStatus(isStreaming) {
+            const mappingRvizContainer = document.getElementById('mappingRvizContainer');
+            const mappingRvizIframe = document.getElementById('mappingRvizIframe');
+            const mappingRvizPlaceholder = document.getElementById('mappingRvizPlaceholder');
+
+            if (isStreaming) {
+                mappingRvizContainer.style.display = 'block';
+
+                const wsHost = window.location.hostname;
+                const wsPort = 6080;
+                mappingRvizIframe.src = `http://${wsHost}:${wsPort}/vnc.html?autoconnect=true&resize=scale`;
+
+                mappingRvizIframe.onload = function() {
+                    mappingRvizPlaceholder.style.display = 'none';
+                };
+            } else {
+                mappingRvizContainer.style.display = 'none';
+                mappingRvizIframe.src = '';
+                mappingRvizPlaceholder.style.display = 'block';
+            }
+        }
+
+        // 更新运动控制状态显示
+        function updateLocoStatus(isRunning) {
+            const locoStatusDisplay = document.getElementById('locoStatusDisplay');
+            const startBtn = document.getElementById('startLocoBtn');
+            const stopBtn = document.getElementById('stopLocoBtn');
+            const logContainer = document.getElementById('locoLogContainer');
+
+            if (isRunning) {
+                locoStatusDisplay.textContent = '运行中';
+                locoStatusDisplay.style.background = '#4ade80';
+                locoStatusDisplay.style.color = '#166534';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                logContainer.style.display = 'block';  // 显示日志容器
+            } else {
+                locoStatusDisplay.textContent = '未启动';
+                locoStatusDisplay.style.background = 'rgba(100,100,100,0.2)';
+                locoStatusDisplay.style.color = '#666';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                logContainer.style.display = 'none';   // 隐藏日志容器
+            }
+        }
+
+        // 追加运动控制日志
+        function appendLocoLog(line) {
+            const logDisplay = document.getElementById('locoLogDisplay');
+            if (logDisplay) {
+                logDisplay.textContent += line + '\n';
+                logDisplay.scrollTop = logDisplay.scrollHeight;  // 自动滚动到底部
+            }
+        }
+
+        // 清空运动控制日志
+        function clearLocoLog() {
+            const logDisplay = document.getElementById('locoLogDisplay');
+            if (logDisplay) {
+                logDisplay.textContent = '';
+            }
+        }
+
+        // 开启运动控制
+        async function startLoco() {
+            try {
+                const response = await fetch('/api/toggle_loco', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateLocoStatus(true);
+                } else {
+                    addLog(result.message, 'error');
+                    updateLocoStatus(false);
+                }
+            } catch (error) {
+                addLog(`开启运动控制失败：${error.message}`, 'error');
+                updateLocoStatus(false);
+            }
+        }
+
+        // 停止运动控制
+        async function stopLoco() {
+            try {
+                const response = await fetch('/api/toggle_loco', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateLocoStatus(false);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`停止运动控制失败：${error.message}`, 'error');
+            }
+        }
+
+        // 更新小野AI状态显示
+        function updateXiaoyeStatus(isRunning) {
+            const xiaoyeStatus = document.getElementById('xiaoyeStatus');
+            const xiaoyeStatusDisplay = document.getElementById('xiaoyeStatusDisplay');
+            const startBtn = document.getElementById('startXiaoyeBtn');
+            const stopBtn = document.getElementById('stopXiaoyeBtn');
+            
+            if (isRunning) {
+                xiaoyeStatus.textContent = '运行中';
+                xiaoyeStatus.style.background = '#4ade80';
+                xiaoyeStatus.style.color = '#166534';
+                xiaoyeStatusDisplay.textContent = '运行中';
+                xiaoyeStatusDisplay.style.background = '#4ade80';
+                xiaoyeStatusDisplay.style.color = '#166534';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                xiaoyeStatus.textContent = '未启动';
+                xiaoyeStatus.style.background = 'rgba(255,255,255,0.1)';
+                xiaoyeStatus.style.color = 'white';
+                xiaoyeStatusDisplay.textContent = '未启动';
+                xiaoyeStatusDisplay.style.background = 'rgba(100,100,100,0.2)';
+                xiaoyeStatusDisplay.style.color = '#666';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        // 启动小野AI
+        async function startXiaoye() {
+            try {
+                const response = await fetch('/api/start_xiaoye', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateXiaoyeStatus(true);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`启动小野AI失败：${error.message}`, 'error');
+            }
+        }
+
+        // 停止小野AI
+        async function stopXiaoye() {
+            try {
+                const response = await fetch('/api/stop_xiaoye', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateXiaoyeStatus(false);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`停止小野AI失败：${error.message}`, 'error');
+            }
+        }
+
+        // ============ 人脸识别模块 ============
+
+        // 日志框行类型识别
+        function _classifyLogLine(text) {
+            const t = (text || '').toString();
+            if (t.includes('❌') || t.includes('失败') || t.includes('错误') || t.includes('ERROR')) return 'error';
+            if (t.includes('✅') || t.includes('成功') || t.includes('识别成功') || t.includes('🎉')) return 'success';
+            if (t.includes('⚠️') || t.includes('警告') || t.includes('QPS')) return 'warning';
+            return '';
+        }
+
+        function _appendLogLine(containerId, line) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            // 第一次写入时清掉占位 <p>
+            if (container.querySelector('p')) {
+                container.innerHTML = '';
+            }
+            const div = document.createElement('div');
+            div.className = 'log-line ' + _classifyLogLine(line);
+            div.textContent = line;
+            container.appendChild(div);
+            // 自动滚动到底部
+            container.scrollTop = container.scrollHeight;
+            // 限制最大行数避免内存膨胀
+            while (container.children.length > 300) {
+                container.removeChild(container.firstChild);
+            }
+        }
+
+        function appendFaceGreetLog(line) {
+            _appendLogLine('faceGreetLogContainer', line);
+        }
+        function appendGestureControlLog(line) {
+            _appendLogLine('gestureCtrlLogContainer', line);
+        }
+
+        function updateFaceGreetStatus(isRunning) {
+            const display = document.getElementById('faceGreetStatusDisplay');
+            const startBtn = document.getElementById('startFaceGreetBtn');
+            const stopBtn = document.getElementById('stopFaceGreetBtn');
+            if (isRunning) {
+                display.textContent = '运行中';
+                display.style.background = '#4ade80';
+                display.style.color = '#166534';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                display.textContent = '未启动';
+                display.style.background = 'rgba(100,100,100,0.2)';
+                display.style.color = '#666';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        function updateGestureControlStatus(isRunning) {
+            const display = document.getElementById('gestureCtrlStatusDisplay');
+            const startBtn = document.getElementById('startGestureCtrlBtn');
+            const stopBtn = document.getElementById('stopGestureCtrlBtn');
+            if (isRunning) {
+                display.textContent = '运行中';
+                display.style.background = '#4ade80';
+                display.style.color = '#166534';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                display.textContent = '未启动';
+                display.style.background = 'rgba(100,100,100,0.2)';
+                display.style.color = '#666';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        async function startFaceGreet() {
+            try {
+                const response = await fetch('/api/start_face_greet', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateFaceGreetStatus(true);
+                    // 启动后清空旧日志, 准备接收新日志
+                    document.getElementById('faceGreetLogContainer').innerHTML = '';
+                    if (result.logs && result.logs.length) {
+                        result.logs.forEach(l => appendFaceGreetLog(l));
+                    }
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`启动人脸识别失败：${error.message}`, 'error');
+            }
+        }
+
+        async function stopFaceGreet() {
+            try {
+                const response = await fetch('/api/stop_face_greet', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const result = await response.json();
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateFaceGreetStatus(false);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`停止人脸识别失败：${error.message}`, 'error');
+            }
+        }
+
+        async function refreshFaceGreetLogs() {
+            try {
+                const response = await fetch('/api/face_greet_status');
+                const result = await response.json();
+                const container = document.getElementById('faceGreetLogContainer');
+                container.innerHTML = '';
+                if (result.logs && result.logs.length) {
+                    result.logs.forEach(l => appendFaceGreetLog(l));
+                } else {
+                    container.innerHTML = '<p style="color: #888; font-size: 0.85em; text-align: center; padding: 20px;">暂无日志</p>';
+                }
+                updateFaceGreetStatus(!!result.running);
+                addLog('已刷新人脸识别日志', 'info');
+            } catch (error) {
+                addLog(`刷新人脸识别日志失败：${error.message}`, 'error');
+            }
+        }
+
+        async function startGestureControl() {
+            try {
+                const response = await fetch('/api/start_gesture_control', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
+                const result = await response.json();
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateGestureControlStatus(true);
+                    document.getElementById('gestureCtrlLogContainer').innerHTML = '';
+                    if (result.logs && result.logs.length) {
+                        result.logs.forEach(l => appendGestureControlLog(l));
+                    }
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`启动手势识别失败：${error.message}`, 'error');
+            }
+        }
+
+        async function stopGestureControl() {
+            try {
+                const response = await fetch('/api/stop_gesture_control', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                });
+                const result = await response.json();
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateGestureControlStatus(false);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`停止手势识别失败：${error.message}`, 'error');
+            }
+        }
+
+        async function refreshGestureControlLogs() {
+            try {
+                const response = await fetch('/api/gesture_control_status');
+                const result = await response.json();
+                const container = document.getElementById('gestureCtrlLogContainer');
+                container.innerHTML = '';
+                if (result.logs && result.logs.length) {
+                    result.logs.forEach(l => appendGestureControlLog(l));
+                } else {
+                    container.innerHTML = '<p style="color: #888; font-size: 0.85em; text-align: center; padding: 20px;">暂无日志</p>';
+                }
+                updateGestureControlStatus(!!result.running);
+                addLog('已刷新手势识别日志', 'info');
+            } catch (error) {
+                addLog(`刷新手势识别日志失败：${error.message}`, 'error');
+            }
+        }
+
+        async function gestureSendKey(key) {
+            try {
+                const response = await fetch('/api/gesture_send_key', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({key: key})
+                });
+                const result = await response.json();
+                if (result.success) {
+                    addLog(`[手势] 已发送按键: ${key}`, 'info');
+                } else {
+                    addLog(`[手势] ${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`[手势] 发送按键失败：${error.message}`, 'error');
+            }
+        }
+
+        // 更新展览状态显示
+        function updateExhibitionStatus(running) {
+            const statusElement = document.getElementById('navigationStatus');
+            const statusDisplay = document.getElementById('exhibitionStatusDisplay');
+            const startBtn = document.getElementById('startExhibitionBtn');
+            const stopBtn = document.getElementById('stopExhibitionBtn');
+            
+            if (running) {
+                statusElement.textContent = '展览中';
+                statusElement.style.background = '#8b5cf6';
+                statusElement.style.color = 'white';
+                statusDisplay.textContent = '运行中';
+                statusDisplay.style.background = '#8b5cf6';
+                statusDisplay.style.color = 'white';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                statusElement.textContent = '未启动';
+                statusElement.style.background = 'rgba(255,255,255,0.1)';
+                statusElement.style.color = 'white';
+                statusDisplay.textContent = '未启动';
+                statusDisplay.style.background = 'rgba(100,100,100,0.2)';
+                statusDisplay.style.color = '#666';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        // 启动一键展览
+        async function startExhibition() {
+            try {
+                const response = await fetch('/api/start_exhibition', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateExhibitionStatus(true);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`启动一键展览失败：${error.message}`, 'error');
+            }
+        }
+
+        // 停止一键展览
+        async function stopExhibition() {
+            try {
+                const response = await fetch('/api/stop_exhibition', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateExhibitionStatus(false);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`停止一键展览失败：${error.message}`, 'error');
+            }
+        }
+
+        // 启动导航
+        async function startNavigation() {
+            try {
+                const response = await fetch('/api/start_navigation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateNavigationStatus(true);
+                    updateRvizStatus(true);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`启动导航失败：${error.message}`, 'error');
+            }
+        }
+
+        // 停止导航
+        async function stopNavigation() {
+            try {
+                const response = await fetch('/api/stop_navigation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateNavigationStatus(false);
+                    updateRvizStatus(false);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`停止导航失败：${error.message}`, 'error');
+            }
+        }
+
+        // 更新建图状态显示
+        function updateMappingStatus(isRunning) {
+            const mappingStatusDisplay = document.getElementById('mappingStatusDisplay');
+            const startBtn = document.getElementById('startMappingBtn');
+            const stopBtn = document.getElementById('stopMappingBtn');
+
+            if (isRunning) {
+                mappingStatusDisplay.textContent = '运行中';
+                mappingStatusDisplay.style.background = '#06b6d4';
+                mappingStatusDisplay.style.color = '#155e75';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                mappingStatusDisplay.textContent = '未启动';
+                mappingStatusDisplay.style.background = 'rgba(100,100,100,0.2)';
+                mappingStatusDisplay.style.color = '#666';
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+            }
+        }
+
+        // 启动建图
+        async function startMapping() {
+            try {
+                const response = await fetch('/api/start_mapping', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateMappingStatus(true);
+                    updateMappingRvizStatus(true);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`启动建图失败：${error.message}`, 'error');
+            }
+        }
+
+        // 停止建图
+        async function stopMapping() {
+            try {
+                const response = await fetch('/api/stop_mapping', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateMappingStatus(false);
+                    updateMappingRvizStatus(false);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`停止建图失败：${error.message}`, 'error');
+            }
+        }
+
+        // 保存地图
+        async function saveMap() {
+            try {
+                const mapNameInput = document.getElementById('mapNameInput');
+                const mapName = mapNameInput.value.trim();
+
+                if (!mapName) {
+                    addLog('请输入地图名称', 'error');
+                    return;
+                }
+
+                addLog(`正在保存地图: ${mapName}...`, 'info');
+                const response = await fetch('/api/save_map', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ map_name: mapName })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    addLog('已自动修正 yaml 文件中的 nan 为 0', 'info');
+                    loadMapList();
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`保存地图失败：${error.message}`, 'error');
+            }
+        }
+
+        // 加载可用地图列表
+        async function loadMapList() {
+            try {
+                const response = await fetch('/api/get_maps');
+                const result = await response.json();
+
+                if (result.success) {
+                    const selectElement = document.getElementById('mapSelect');
+                    selectElement.innerHTML = '';
+
+                    if (result.maps.length === 0) {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = '-- 无可用地图 --';
+                        selectElement.appendChild(option);
+                        addLog('未找到可用地图', 'warning');
+                        return;
+                    }
+
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = '';
+                    defaultOption.textContent = '-- 请选择地图 --';
+                    selectElement.appendChild(defaultOption);
+
+                    result.maps.forEach(map => {
+                        const option = document.createElement('option');
+                        option.value = map.name;
+                        option.textContent = `${map.name} (${new Date(map.modified_time * 1000).toLocaleString('zh-CN')})`;
+
+                        if (result.selected_map && result.selected_map === map.name) {
+                            option.selected = true;
+                        }
+
+                        selectElement.appendChild(option);
+                    });
+
+                    addLog(`已加载 ${result.maps.length} 个可用地图`, 'success');
+
+                    if (result.selected_map) {
+                        updateCurrentMapDisplay(result.selected_map);
+                    }
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`加载地图列表失败：${error.message}`, 'error');
+            }
+        }
+
+        // 选择地图用于导航
+        async function selectMapForNavigation() {
+            try {
+                const selectElement = document.getElementById('mapSelect');
+                const selectedValue = selectElement.value;
+
+                if (!selectedValue) {
+                    addLog('请先选择一个地图', 'warning');
+                    return;
+                }
+
+                const response = await fetch('/api/select_map', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ map_name: selectedValue })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    updateCurrentMapDisplay(selectedValue);
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`选择地图失败：${error.message}`, 'error');
+            }
+        }
+
+        // 更新当前地图显示
+        function updateCurrentMapDisplay(mapName) {
+            const displayElement = document.getElementById('currentMapDisplay');
+            if (displayElement) {
+                if (mapName) {
+                    displayElement.textContent = mapName;
+                    displayElement.style.background = '#4ade80';
+                    displayElement.style.color = '#166534';
+                } else {
+                    displayElement.textContent = '未选择';
+                    displayElement.style.background = 'rgba(255,255,255,0.1)';
+                    displayElement.style.color = 'white';
+                }
+            }
+            
+            // 自动显示当前地图的原点信息
+            if (mapName) {
+                showMapOriginInfo(mapName);
+            } else {
+                hideMapOriginInfo();
+            }
+        }
+
+        // 地图下拉框选择改变时触发
+        function onMapSelectChange() {
+            const selectElement = document.getElementById('mapSelect');
+            const selectedMap = selectElement.value;
+            
+            if (selectedMap) {
+                showMapOriginInfo(selectedMap);
+            } else {
+                hideMapOriginInfo();
+            }
+        }
+
+        // 显示地图原点信息
+        async function showMapOriginInfo(mapName) {
+            try {
+                const response = await fetch('/api/map_origin');
+                const data = await response.json();
+                
+                const originInfoDiv = document.getElementById('mapOriginInfo');
+                const originNameSpan = document.getElementById('mapOriginName');
+                const originCoordsDiv = document.getElementById('mapOriginCoords');
+                const originDescDiv = document.getElementById('mapOriginDesc');
+                
+                if (data.success && data.origin) {
+                    originInfoDiv.style.display = 'block';
+                    originNameSpan.textContent = `[${data.map_name}]`;
+                    originCoordsDiv.textContent = `X: ${data.origin.x.toFixed(2)}, Y: ${data.origin.y.toFixed(2)}`;
+                    originDescDiv.textContent = data.description || '';
+                    
+                    addLog(`📍 地图 [${data.map_name}] 原点: (${data.origin.x}, ${data.origin.y})`, 'info');
+                } else if (mapName) {
+                    // 如果API返回失败，但用户选择了地图，尝试显示提示
+                    originInfoDiv.style.display = 'block';
+                    originNameSpan.textContent = `[${mapName}]`;
+                    originCoordsDiv.textContent = '加载中...';
+                    originDescDiv.textContent = data.message || '正在获取原点信息';
+                    
+                    // 3秒后重试一次
+                    setTimeout(() => {
+                        selectMapForNavigation();  // 触发重新选择以更新原点
+                    }, 1000);
+                } else {
+                    hideMapOriginInfo();
+                }
+            } catch (error) {
+                console.error('获取地图原点失败:', error);
+                addLog(`获取地图原点异常: ${error.message}`, 'error');
+                
+                const originInfoDiv = document.getElementById('mapOriginInfo');
+                if (originInfoDiv) {
+                    originInfoDiv.style.display = 'block';
+                    document.getElementById('mapOriginName').textContent = `[${mapName}]`;
+                    document.getElementById('mapOriginCoords').textContent = '⚠️ 获取失败';
+                    document.getElementById('mapOriginDesc').textContent = error.message;
+                }
+            }
+        }
+
+        // 隐藏地图原点信息
+        function hideMapOriginInfo() {
+            const originInfoDiv = document.getElementById('mapOriginInfo');
+            if (originInfoDiv) {
+                originInfoDiv.style.display = 'none';
+            }
+        }
+
+        // ========== 展览与巡逻功能模块 ==========
+
+        let recordedPoints = [];
+        let currentPosition = { x: 0, y: 0, yaw: 0 };
+
+        // 获取 G1 当前位置
+        async function getCurrentPosition() {
+            try {
+                const getPosBtn = document.getElementById('getPosBtn');
+                getPosBtn.disabled = true;
+                getPosBtn.textContent = '⏳ 获取中...';
+
+                const response = await fetch('/api/get_current_position', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentPosition = {
+                        x: result.position.x,
+                        y: result.position.y,
+                        yaw: result.position.yaw
+                    };
+
+                    document.getElementById('currentPosX').textContent = currentPosition.x.toFixed(3);
+                    document.getElementById('currentPosY').textContent = currentPosition.y.toFixed(3);
+                    document.getElementById('currentPosYaw').textContent = currentPosition.yaw.toFixed(4) + ' rad';
+
+                    const now = new Date();
+                    document.getElementById('lastPosUpdateTime').textContent =
+                        now.getHours().toString().padStart(2, '0') + ':' +
+                        now.getMinutes().toString().padStart(2, '0') + ':' +
+                        now.getSeconds().toString().padStart(2, '0');
+
+                    addLog(`获取位置成功：X=${currentPosition.x.toFixed(3)}, Y=${currentPosition.y.toFixed(3)}, Yaw=${currentPosition.yaw.toFixed(4)} rad`, 'success');
+                } else {
+                    addLog(`获取位置失败：${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`获取位置异常：${error.message}`, 'error');
+            } finally {
+                const getPosBtn = document.getElementById('getPosBtn');
+                getPosBtn.disabled = false;
+                getPosBtn.textContent = '🔄 获取位置';
+            }
+        }
+
+        // 一键记录当前位置
+        async function recordCurrentPosition() {
+            try {
+                if (currentPosition.x === 0 && currentPosition.y === 0) {
+                    addLog('请先获取当前位置', 'warning');
+                    return;
+                }
+
+                const recordPosBtn = document.getElementById('recordPosBtn');
+                recordPosBtn.disabled = true;
+                recordPosBtn.textContent = '⏳ 记录中...';
+
+                const response = await fetch('/api/record_position', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        x: currentPosition.x,
+                        y: currentPosition.y,
+                        yaw: currentPosition.yaw,
+                        name: `点位${recordedPoints.length + 1}`
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    recordedPoints.push(result.point);
+                    updateRecordedPointsList();
+                    addLog(`记录位置成功：${result.point.name} (${result.point.x.toFixed(3)}, ${result.point.y.toFixed(3)})`, 'success');
+
+                    document.getElementById('exportPointsBtn').disabled = false;
+                    if (recordedPoints.length >= 2) {
+                        document.getElementById('startPatrolBtn').disabled = false;
+                    }
+                } else {
+                    addLog(`记录位置失败：${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`记录位置异常：${error.message}`, 'error');
+            } finally {
+                const recordPosBtn = document.getElementById('recordPosBtn');
+                recordPosBtn.disabled = false;
+                recordPosBtn.textContent = '📌 一键记录此位置';
+            }
+        }
+
+        // 更新已记录点位列表显示
+        function updateRecordedPointsList() {
+            const listContainer = document.getElementById('recordedPointsList');
+            const countDisplay = document.getElementById('recordedPointsCount');
+
+            countDisplay.textContent = recordedPoints.length;
+
+            if (recordedPoints.length === 0) {
+                listContainer.innerHTML = `
+                    <p style="color: #888; font-size: 0.9em; text-align: center; padding: 20px;">
+                        暂无记录，点击上方按钮记录当前位置
+                    </p>
+                `;
+                return;
+            }
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+            recordedPoints.forEach((point, index) => {
+                html += `
+                    <div style="background: white; padding: 12px; border-radius: 8px; border-left: 4px solid #4ade80; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #166534;">#${index + 1} ${point.name}</strong>
+                            <div style="color: #666; font-size: 0.9em; font-family: monospace; margin-top: 4px;">
+                                X: ${point.x.toFixed(3)} | Y: ${point.y.toFixed(3)} | Yaw: ${(point.yaw * 180 / Math.PI).toFixed(2)}°
+                            </div>
+                            <div style="color: #888; font-size: 0.8em; margin-top: 2px;">
+                                ${new Date(point.timestamp * 1000).toLocaleString('zh-CN')}
+                            </div>
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteRecordedPoint(${index})" style="padding: 5px 10px; font-size: 0.8em;">
+                            🗑️ 删除
+                        </button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            listContainer.innerHTML = html;
+        }
+
+        // 删除单个记录点
+        async function deleteRecordedPoint(index) {
+            try {
+                const response = await fetch('/api/delete_recorded_point', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ index: index })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    recordedPoints.splice(index, 1);
+                    updateRecordedPointsList();
+                    addLog(`已删除点位 #${index + 1}`, 'info');
+
+                    if (recordedPoints.length === 0) {
+                        document.getElementById('exportPointsBtn').disabled = true;
+                        document.getElementById('startPatrolBtn').disabled = true;
+                    } else if (recordedPoints.length < 2) {
+                        document.getElementById('startPatrolBtn').disabled = true;
+                    }
+                } else {
+                    addLog(`删除失败：${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`删除异常：${error.message}`, 'error');
+            }
+        }
+
+        // 清空所有记录点
+        async function clearAllRecordedPoints() {
+            if (!confirm('确定要清空所有已记录的巡逻点吗？')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/clear_all_points', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    recordedPoints = [];
+                    updateRecordedPointsList();
+                    document.getElementById('exportPointsBtn').disabled = true;
+                    document.getElementById('startPatrolBtn').disabled = true;
+                    addLog('已清空所有巡逻点', 'warning');
+                } else {
+                    addLog(`清空失败：${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`清空异常：${error.message}`, 'error');
+            }
+        }
+
+        // 导出点位数据
+        async function exportRecordedPoints() {
+            try {
+                const response = await fetch('/api/export_points', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    const dataStr = JSON.stringify(recordedPoints, null, 2);
+                    const blob = new Blob([dataStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `patrol_points_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, '')}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+
+                    addLog(`已导出 ${recordedPoints.length} 个巡逻点到文件`, 'success');
+                } else {
+                    addLog(`导出失败：${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`导出异常：${error.message}`, 'error');
+            }
+        }
+
+        // 开始巡逻模式（预留接口）
+        async function startPatrolMode() {
+            if (recordedPoints.length < 2) {
+                addLog('至少需要 2 个巡逻点才能开始巡逻', 'warning');
+                return;
+            }
+
+            addLog('🚀 巡逻功能开发中，敬请期待！', 'info');
+            alert('自动巡逻功能正在开发中，即将推出！\n\n当前已记录 ' + recordedPoints.length + ' 个巡逻点。');
+        }
+
+        // 停止当前 RViz 操作（导航或建图）
+        function stopCurrentRvizOperation() {
+            const navStatus = document.getElementById('navigationStatus').textContent;
+            const mappingStatus = document.getElementById('mappingStatusDisplay').textContent;
+
+            if (mappingStatus === '运行中') {
+                stopMapping();
+            } else if (navStatus === '运行中') {
+                stopNavigation();
+            } else {
+                addLog('没有正在运行的导航或建图操作', 'warning');
+            }
+        }
+
+        // 执行重定位
+        async function executeRelocate() {
+            try {
+                addLog('正在执行重定位...', 'info');
+                const response = await fetch('/api/relocate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        x: 0.0,
+                        y: 0.0,
+                        z: 0.0,
+                        roll: 0.0,
+                        pitch: 0.0,
+                        yaw: 0.0
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog(result.message, 'success');
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`重定位失败：${error.message}`, 'error');
+            }
+        }
+
+        // 切换 RViz
+        async function toggleRviz() {
+            try {
+                const response = await fetch('/api/toggle_rviz', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    addLog(result.message, 'success');
+                    // 刷新状态获取最新的 RViz 状态
+                    refreshStatus();
+                } else {
+                    addLog(result.message, 'error');
+                }
+            } catch (error) {
+                addLog(`RViz 操作失败：${error.message}`, 'error');
+            }
+        }
+
+        // 关闭 RViz 画面
+        function closeRviz() {
+            toggleRviz();
+        }
+
+        // ========== 摇杆控制 ==========
+        let currentGear = 1;
+        let moveJoystickState = { active: false, x: 0, y: 0 };
+        let turnJoystickState = { active: false, x: 0, y: 0 };
+        let velocitySendTimer = null;
+        const GEAR_SPEEDS = {
+            1: { vx: 0.3, vy: 0.2, wz: 0.4 },
+            2: { vx: 0.6, vy: 0.3, wz: 0.8 },
+            3: { vx: 1.0, vy: 0.5, wz: 1.2 }
+        };
+
+        function initJoystick(containerId, knobId, stateObj, onMove, onEnd) {
+            const container = document.getElementById(containerId);
+            const knob = document.getElementById(knobId);
+            const maxDist = 60;
+
+            function getPos(e) {
+                const rect = container.getBoundingClientRect();
+                const cx = rect.left + rect.width / 2;
+                const cy = rect.top + rect.height / 2;
+                let clientX, clientY;
+                if (e.touches) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+                return { x: clientX - cx, y: clientY - cy };
+            }
+
+            function clamp(x, y) {
+                const dist = Math.sqrt(x * x + y * y);
+                if (dist > maxDist) {
+                    const scale = maxDist / dist;
+                    return { x: x * scale, y: y * scale };
+                }
+                return { x, y };
+            }
+
+            function start(e) {
+                e.preventDefault();
+                stateObj.active = true;
+                knob.classList.add('active');
+                handleMove(e);
+            }
+
+            function handleMove(e) {
+                if (!stateObj.active) return;
+                e.preventDefault();
+                const pos = getPos(e);
+                const clamped = clamp(pos.x, pos.y);
+                stateObj.x = clamped.x / maxDist;
+                stateObj.y = clamped.y / maxDist;
+                knob.style.transform = `translate(calc(-50% + ${clamped.x}px), calc(-50% + ${clamped.y}px))`;
+                if (onMove) onMove();
+            }
+
+            function end(e) {
+                if (!stateObj.active) return;
+                stateObj.active = false;
+                stateObj.x = 0;
+                stateObj.y = 0;
+                knob.classList.remove('active');
+                knob.style.transform = 'translate(-50%, -50%)';
+                if (onEnd) onEnd();
+            }
+
+            container.addEventListener('mousedown', start);
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', end);
+            container.addEventListener('touchstart', start, { passive: false });
+            document.addEventListener('touchmove', handleMove, { passive: false });
+            document.addEventListener('touchend', end);
+        }
+
+        function sendVelocityFromJoysticks() {
+            const gear = GEAR_SPEEDS[currentGear];
+            const vx = -moveJoystickState.y * gear.vx;
+            const vy = -moveJoystickState.x * gear.vy;
+            const wz = -turnJoystickState.x * gear.wz;
+
+            fetch('/api/set_velocity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vx, vy, wz })
+            }).catch(err => {});
+
+            updateVelocityDisplay(vx, vy, wz);
+        }
+
+        function stopVelocity() {
+            fetch('/api/set_velocity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vx: 0, vy: 0, wz: 0 })
+            }).catch(err => {});
+            updateVelocityDisplay(0, 0, 0);
+        }
+
+        function updateVelocityDisplay(vx, vy, wz) {
+            const display = document.getElementById('velocityDisplay');
+            if (display) {
+                display.innerHTML = `<span>vx: ${vx.toFixed(3)}</span><span>vy: ${vy.toFixed(3)}</span><span>wz: ${wz.toFixed(3)}</span>`;
+            }
+        }
+
+        function startVelocityLoop() {
+            if (velocitySendTimer) return;
+            velocitySendTimer = setInterval(() => {
+                if (moveJoystickState.active || turnJoystickState.active) {
+                    sendVelocityFromJoysticks();
+                }
+            }, 100);
+        }
+
+        function stopVelocityLoop() {
+            if (velocitySendTimer) {
+                clearInterval(velocitySendTimer);
+                velocitySendTimer = null;
+            }
+        }
+
+        // ========== 档位控制 ==========
+        function setGear(gear) {
+            currentGear = gear;
+            document.querySelectorAll('.gear-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.gear) === gear);
+            });
+            const speeds = GEAR_SPEEDS[gear];
+            const info = document.getElementById('gearSpeedInfo');
+            if (info) {
+                info.textContent = `vx:${speeds.vx} vy:${speeds.vy} wz:${speeds.wz}`;
+            }
+            addLog(`切换到 ${gear} 档 (vx:${speeds.vx}, vy:${speeds.vy}, wz:${speeds.wz})`, 'info');
+
+            fetch('/api/set_gear', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gear: gear })
+            }).catch(err => {});
+        }
+
+        // ========== 急停 ==========
+        function emergencyStop() {
+            stopVelocityLoop();
+            moveJoystickState.active = false;
+            moveJoystickState.x = 0;
+            moveJoystickState.y = 0;
+            turnJoystickState.active = false;
+            turnJoystickState.x = 0;
+            turnJoystickState.y = 0;
+
+            const moveKnob = document.getElementById('moveKnob');
+            const turnKnob = document.getElementById('turnKnob');
+            if (moveKnob) moveKnob.style.transform = 'translate(-50%, -50%)';
+            if (turnKnob) turnKnob.style.transform = 'translate(-50%, -50%)';
+
+            fetch('/api/emergency_stop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            }).then(r => r.json()).then(data => {
+                addLog(data.message, data.success ? 'success' : 'error');
+            }).catch(err => {
+                addLog('急停请求失败', 'error');
+            });
+            updateVelocityDisplay(0, 0, 0);
+        }
+
+        // ========== FSM模式切换 ==========
+        function setFsm(fsmId) {
+            fetch('/api/set_fsm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fsm_id: fsmId })
+            }).then(r => r.json()).then(data => {
+                addLog(data.message, data.success ? 'success' : 'error');
+            }).catch(err => {
+                addLog(`FSM切换失败：${err.message}`, 'error');
+            });
+        }
+
+        // ========== 速度实时更新 ==========
+        let velocityPollingTimer = null;
+        function startVelocityPolling() {
+            if (velocityPollingTimer) return;
+            velocityPollingTimer = setInterval(() => {
+                fetch('/api/get_velocity')
+                    .then(r => r.json())
+                    .then(data => {
+                        if (!moveJoystickState.active && !turnJoystickState.active) {
+                            updateVelocityDisplay(data.vx, data.vy, data.wz);
+                        }
+                    })
+                    .catch(() => {});
+            }, 1000);
+        }
+
+        // 页面加载完成后初始化
+        window.addEventListener('DOMContentLoaded', function() {
+            initSocket();
+            loadActions();
+            refreshStatus();
+
+            // 初始化移动摇杆
+            initJoystick('moveJoystick', 'moveKnob', moveJoystickState,
+                function onMove() {
+                    sendVelocityFromJoysticks();
+                    startVelocityLoop();
+                },
+                function onEnd() {
+                    stopVelocity();
+                    stopVelocityLoop();
+                }
+            );
+
+            // 初始化转向摇杆
+            initJoystick('turnJoystick', 'turnKnob', turnJoystickState,
+                function onMove() {
+                    sendVelocityFromJoysticks();
+                    startVelocityLoop();
+                },
+                function onEnd() {
+                    stopVelocity();
+                    stopVelocityLoop();
+                }
+            );
+
+            // 启动速度轮询
+            startVelocityPolling();
+        });
+
+        // ========== 展览与巡逻路径管理 ==========
+        
+        let currentWaypoints = [];
+        let selectedWaypointId = null;
+        let selectedSavedPath = null;
+        let sayTextCount = 1;
+
+        // 获取当前位置
+        async function getCurrentPosition() {
+            try {
+                const btn = document.getElementById('getPosBtn');
+                btn.disabled = true;
+                btn.textContent = '⏳ 获取中...';
+                
+                const response = await fetch('/api/exhibition/get_current_position');
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('currentPosX').textContent = data.position.x.toFixed(4);
+                    document.getElementById('currentPosY').textContent = data.position.y.toFixed(4);
+                    document.getElementById('currentPosYaw').textContent = (data.position.yaw * 180 / Math.PI).toFixed(1) + '°';
+                    addLog(`获取位置成功: (${data.position.x}, ${data.position.y})`, 'success');
+                } else {
+                    addLog(`获取位置失败: ${data.message}`, 'error');
+                }
+                
+                btn.disabled = false;
+                btn.textContent = '🔄 获取位置';
+            } catch (error) {
+                addLog(`获取位置异常: ${error.message}`, 'error');
+                document.getElementById('getPosBtn').disabled = false;
+                document.getElementById('getPosBtn').textContent = '🔄 获取位置';
+            }
+        }
+
+        // 记录当前位置
+        async function recordCurrentPosition() {
+            try {
+                const btn = document.getElementById('recordPosBtn');
+                btn.disabled = true;
+                btn.textContent = '⏳ 记录中...';
+                
+                const response = await fetch('/api/exhibition/add_waypoint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ use_current_position: true })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentWaypoints.push(data.waypoint);
+                    updateWaypointsList();
+                    addLog(data.message, 'success');
+                    
+                    selectWaypointForEdit(data.waypoint.id);
+                } else {
+                    addLog(`记录失败: ${data.message}`, 'error');
+                }
+                
+                btn.disabled = false;
+                btn.textContent = '📌 记录此位置';
+            } catch (error) {
+                addLog(`记录位置异常: ${error.message}`, 'error');
+                document.getElementById('recordPosBtn').disabled = false;
+                document.getElementById('recordPosBtn').textContent = '📌 记录此位置';
+            }
+        }
+
+        // 显示手动添加对话框
+        function showManualAddDialog() {
+            const x = prompt('请输入 X 坐标:', '0.0');
+            if (x === null) return;
+            
+            const y = prompt('请输入 Y 坐标:', '0.0');
+            if (y === null) return;
+            
+            const yaw = prompt('请输入 Yaw 角度（弧度）:', '0.0');
+            if (yaw === null) return;
+            
+            addWaypointManually(parseFloat(x), parseFloat(y), parseFloat(yaw));
+        }
+
+        // 手动添加路径点
+        async function addWaypointManually(x, y, yaw) {
+            try {
+                const response = await fetch('/api/exhibition/add_waypoint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        use_current_position: false,
+                        x: x,
+                        y: y,
+                        yaw: yaw,
+                        action_id: 25,
+                        say_texts: ['你好']
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentWaypoints.push(data.waypoint);
+                    updateWaypointsList();
+                    addLog(data.message, 'success');
+                    selectWaypointForEdit(data.waypoint.id);
+                } else {
+                    addLog(`添加失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`添加路径点异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 更新路径点列表显示
+        function updateWaypointsList() {
+            const container = document.getElementById('waypointsList');
+            const countEl = document.getElementById('waypointsCount');
+            countEl.textContent = currentWaypoints.length;
+            
+            if (currentWaypoints.length === 0) {
+                container.innerHTML = '<p style="color: #888; font-size: 0.85em; text-align: center; padding: 20px;">暂无路径点，请记录当前位置或手动添加</p>';
+                return;
+            }
+            
+            container.innerHTML = '';
+            currentWaypoints.forEach((wp, index) => {
+                const div = document.createElement('div');
+                div.className = 'waypoint-item';
+                div.style.cssText = `padding: 10px; margin-bottom: 8px; background: white; border-radius: 6px; cursor: pointer; border: 2px solid ${selectedWaypointId === wp.id ? '#667eea' : '#e2e8f0'}; transition: all 0.2s;`;
+                div.onclick = () => selectWaypointForEdit(wp.id);
+                
+                const actionNames = {0:'释放', 1:'握手', 2:'你好', 3:'拥抱', 4:'挥手', 5:'鼓掌', 6:'面部挥手', 7:'左吻', 8:'比心', 9:'右比心', 10:'举手', 11:'X光', 12:'右手举', 13:'拒绝', 14:'右吻', 15:'双手吻'};
+                const actionName = actionNames[wp.action_id] || '无';
+                const previewText = wp.say_texts && wp.say_texts.length > 0 ? wp.say_texts[0].substring(0, 15) + '...' : '无语音';
+                
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #0369a1;">#${wp.id}</strong>
+                            <span style="color: #666; font-family: monospace; font-size: 0.85em;">(${wp.x.toFixed(2)}, ${wp.y.toFixed(2)})</span>
+                            <span style="background: #fef3c7; padding: 2px 6px; border-radius: 3px; font-size: 0.75em; color: #d97706; margin-left: 5px;">${actionName}</span>
+                        </div>
+                        <button onclick="event.stopPropagation(); deleteWaypointById(${wp.id})" style="background: #fee2e2; border: none; padding: 3px 8px; border-radius: 4px; color: #dc2626; cursor: pointer; font-size: 0.75em;">删除</button>
+                    </div>
+                    <div style="color: #888; font-size: 0.8em; margin-top: 5px;">🎤 ${previewText}</div>
+                `;
+                
+                container.appendChild(div);
+            });
+        }
+
+        // 选择路径点进行编辑
+        function selectWaypointForEdit(id) {
+            selectedWaypointId = id;
+            const waypoint = currentWaypoints.find(wp => wp.id === id);
+            
+            if (!waypoint) return;
+            
+            document.getElementById('editingPointId').textContent = `#${id}`;
+            document.getElementById('pointEditor').style.display = 'block';
+            document.getElementById('noPointSelected').style.display = 'none';
+            
+            document.getElementById('editX').value = waypoint.x;
+            document.getElementById('editY').value = waypoint.y;
+            document.getElementById('editYaw').value = waypoint.yaw;
+            document.getElementById('editActionId').value = waypoint.action_id;
+            
+            const container = document.getElementById('sayTextsContainer');
+            container.innerHTML = '';
+            sayTextCount = 0;
+            
+            if (waypoint.say_texts && waypoint.say_texts.length > 0) {
+                waypoint.say_texts.forEach((text, idx) => {
+                    addSayTextField(text);
+                });
+            } else {
+                addSayTextField('');
+            }
+            
+            updateWaypointsList();
+        }
+
+        // 添加语音输入框
+        function addSayTextField(value = '') {
+            sayTextCount++;
+            const container = document.getElementById('sayTextsContainer');
+            const textarea = document.createElement('textarea');
+            textarea.id = `editSayText${sayTextCount}`;
+            textarea.placeholder = `输入第${sayTextCount}条语音内容...`;
+            textarea.rows = 2;
+            textarea.value = value;
+            textarea.style.cssText = 'width: 100%; padding: 6px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 5px; resize: vertical;';
+            container.appendChild(textarea);
+        }
+
+        // 保存路径点编辑
+        async function saveWaypointEdit() {
+            if (!selectedWaypointId) {
+                addLog('请先选择一个路径点', 'warning');
+                return;
+            }
+            
+            try {
+                const sayTexts = [];
+                for (let i = 1; i <= sayTextCount; i++) {
+                    const textarea = document.getElementById(`editSayText${i}`);
+                    if (textarea && textarea.value.trim()) {
+                        sayTexts.push(textarea.value.trim());
+                    }
+                }
+                
+                if (sayTexts.length === 0) {
+                    sayTexts.push('你好');
+                }
+                
+                const response = await fetch('/api/exhibition/update_waypoint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: selectedWaypointId,
+                        x: parseFloat(document.getElementById('editX').value),
+                        y: parseFloat(document.getElementById('editY').value),
+                        yaw: parseFloat(document.getElementById('editYaw').value),
+                        action_id: parseInt(document.getElementById('editActionId').value),
+                        say_texts: sayTexts
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    const idx = currentWaypoints.findIndex(wp => wp.id === selectedWaypointId);
+                    if (idx !== -1) {
+                        currentWaypoints[idx] = data.waypoint;
+                    }
+                    updateWaypointsList();
+                    addLog(data.message, 'success');
+                } else {
+                    addLog(`保存失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`保存异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 删除当前编辑的路径点
+        async function deleteCurrentWaypoint() {
+            if (!selectedWaypointId) {
+                addLog('请先选择一个路径点', 'warning');
+                return;
+            }
+            
+            if (!confirm(`确定要删除第 ${selectedWaypointId} 个路径点吗？`)) return;
+            
+            await deleteWaypointById(selectedWaypointId);
+        }
+
+        // 根据ID删除路径点
+        async function deleteWaypointById(id) {
+            try {
+                const response = await fetch('/api/exhibition/delete_waypoint', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentWaypoints = currentWaypoints.filter(wp => wp.id !== id);
+                    
+                    if (selectedWaypointId === id) {
+                        selectedWaypointId = null;
+                        document.getElementById('editingPointId').textContent = '未选择';
+                        document.getElementById('pointEditor').style.display = 'none';
+                        document.getElementById('noPointSelected').style.display = 'block';
+                    }
+                    
+                    updateWaypointsList();
+                    addLog(data.message, 'success');
+                } else {
+                    addLog(`删除失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`删除异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 清空所有路径点
+        async function clearAllWaypoints() {
+            if (currentWaypoints.length === 0) {
+                addLog('当前没有路径点', 'warning');
+                return;
+            }
+            
+            if (!confirm('确定要清空所有路径点吗？此操作不可撤销！')) return;
+            
+            try {
+                const response = await fetch('/api/exhibition/clear_current_path', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentWaypoints = [];
+                    selectedWaypointId = null;
+                    document.getElementById('editingPointId').textContent = '未选择';
+                    document.getElementById('pointEditor').style.display = 'none';
+                    document.getElementById('noPointSelected').style.display = 'block';
+                    updateWaypointsList();
+                    addLog(data.message, 'info');
+                } else {
+                    addLog(`清空失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`清空异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 保存展览路径
+        async function saveExhibitionPath() {
+            const nameInput = document.getElementById('pathNameInput');
+            const pathName = nameInput.value.trim();
+            
+            if (!pathName) {
+                alert('请输入路径名称！');
+                nameInput.focus();
+                return;
+            }
+            
+            if (currentWaypoints.length === 0) {
+                alert('当前没有路径点，请先记录或添加路径点！');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/exhibition/save_path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: pathName })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(data.message, 'success');
+                    nameInput.value = '';
+                    loadSavedPathsList();
+                } else {
+                    addLog(`保存失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`保存异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 加载已保存的路径列表
+        async function loadSavedPathsList() {
+            try {
+                const response = await fetch('/api/exhibition/list_paths');
+                const data = await response.json();
+                
+                if (data.success) {
+                    renderSavedPathsList(data.paths);
+                } else {
+                    addLog(`加载路径列表失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`加载路径列表异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 渲染已保存的路径列表
+        function renderSavedPathsList(paths) {
+            const container = document.getElementById('savedPathsList');
+            const executeBtn = document.getElementById('executePathBtn');
+            
+            if (paths.length === 0) {
+                container.innerHTML = '<p style="color: #888; font-size: 0.85em; text-align: center; padding: 15px;">暂无已保存的路径</p>';
+                executeBtn.disabled = true;
+                return;
+            }
+            
+            executeBtn.disabled = false;
+            container.innerHTML = '';
+            
+            paths.forEach(path => {
+                const div = document.createElement('div');
+                div.className = 'saved-path-item';
+                div.style.cssText = `padding: 10px; margin-bottom: 8px; background: white; border-radius: 6px; cursor: pointer; border: 2px solid ${selectedSavedPath === path.filename ? '#22c55e' : '#e2e8f0'}; transition: all 0.2s;`;
+                div.onclick = () => selectSavedPath(path.filename);
+                
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="color: #16a34a;">📁 ${path.name}</strong>
+                            <span style="color: #888; font-size: 0.8em; margin-left: 8px;">(${path.total_waypoints}个站点)</span>
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <button onclick="event.stopPropagation(); loadPathToEditor('${path.filename}')" style="background: #dbeafe; border: none; padding: 3px 8px; border-radius: 4px; color: #2563eb; cursor: pointer; font-size: 0.75em;">加载</button>
+                            <button onclick="event.stopPropagation(); deleteSavedPath('${path.filename}')" style="background: #fee2e2; border: none; padding: 3px 8px; border-radius: 4px; color: #dc2626; cursor: pointer; font-size: 0.75em;">删除</button>
+                        </div>
+                    </div>
+                    <div style="color: #aaa; font-size: 0.75em; margin-top: 5px;">更新: ${path.updated_time || path.created_time}</div>
+                `;
+                
+                container.appendChild(div);
+            });
+        }
+
+        // 选择已保存的路径
+        function selectSavedPath(filename) {
+            selectedSavedPath = filename;
+            renderSavedPathsListFromCache();
+        }
+
+        // 从缓存重新渲染（避免重复请求）
+        function renderSavedPathsListFromCache() {
+            loadSavedPathsList();
+        }
+
+        // 加载路径到编辑器
+        async function loadPathToEditor(filename) {
+            try {
+                const response = await fetch('/api/exhibition/load_path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentWaypoints = data.waypoints;
+                    selectedWaypointId = null;
+                    document.getElementById('editingPointId').textContent = '未选择';
+                    document.getElementById('pointEditor').style.display = 'none';
+                    document.getElementById('noPointSelected').style.display = 'block';
+                    updateWaypointsList();
+                    addLog(data.message, 'success');
+                } else {
+                    addLog(`加载失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`加载路径异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 删除已保存的路径
+        async function deleteSavedPath(filename) {
+            if (!confirm(`确定要删除路径 "${filename}" 吗？此操作不可撤销！`)) return;
+            
+            try {
+                const response = await fetch('/api/exhibition/delete_path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: filename })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(data.message, 'success');
+                    if (selectedSavedPath === filename) {
+                        selectedSavedPath = null;
+                    }
+                    loadSavedPathsList();
+                } else {
+                    addLog(`删除失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`删除异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 执行已保存的路径
+        async function executeSavedPath() {
+            if (!selectedSavedPath) {
+                alert('请先从列表中选择一个要执行的路径！');
+                return;
+            }
+            
+            if (!confirm(`确定要执行路径 "${selectedSavedPath}" 吗？\n机器人将按照预设路径进行展览巡逻。`)) return;
+            
+            try {
+                const response = await fetch('/api/exhibition/run_saved_path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        filename: selectedSavedPath,
+                        network_interface: 'eth0'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(data.message, 'success');
+                    
+                    document.getElementById('executePathBtn').disabled = true;
+                    document.getElementById('stopPathBtn').disabled = false;
+                    document.getElementById('stopPathBtn').textContent = '⏹️ 中断执行中...';
+                    document.getElementById('stopPathBtn').style.background = '#ff6b6b';
+                    
+                    updateExhibitionStatus(true);
+                } else {
+                    addLog(`执行失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`执行路径异常: ${error.message}`, 'error');
+            }
+        }
+
+        // 中断/停止正在执行的路径
+        async function stopRunningPath() {
+            const stopBtn = document.getElementById('stopPathBtn');
+            
+            if (!confirm('⚠️ 确定要中断/停止当前正在执行的展览路径吗？\n\n机器人将立即停止导航和动作执行。')) return;
+            
+            try {
+                stopBtn.disabled = true;
+                stopBtn.textContent = '⏳ 正在中断...';
+                
+                const response = await fetch('/api/exhibition/stop_running_path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLog(data.message, 'warning');
+                    
+                    stopBtn.disabled = true;
+                    stopBtn.textContent = '⏹️ 中断执行';
+                    stopBtn.style.background = '';
+                    
+                    document.getElementById('executePathBtn').disabled = false;
+                    
+                    updateExhibitionStatus(false);
+                } else {
+                    addLog(`中断失败: ${data.message}`, 'error');
+                    
+                    stopBtn.disabled = false;
+                    stopBtn.textContent = '⏹️ 中断执行';
+                }
+            } catch (error) {
+                addLog(`中断路径异常: ${error.message}`, 'error');
+                
+                stopBtn.disabled = false;
+                stopBtn.textContent = '⏹️ 中断执行';
+            }
+        }
+
+        // WebSocket 事件监听 - 展览与巡逻相关
+        socket.on('waypoint_added', function(data) {
+            addLog(data.message, 'success');
+        });
+
+        socket.on('waypoint_updated', function(data) {
+            addLog(data.message, 'info');
+        });
+
+        socket.on('waypoint_deleted', function(data) {
+            addLog(data.message, 'warning');
+        });
+
+        socket.on('path_cleared', function(data) {
+            addLog(data.message, 'warning');
+        });
+
+        socket.on('path_saved', function(data) {
+            addLog(data.message, 'success');
+        });
+
+        socket.on('path_loaded', function(data) {
+            addLog(data.message, 'success');
+        });
+
+        socket.on('path_deleted', function(data) {
+            addLog(data.message, 'warning');
+        });
+
+        // 展览路径执行状态变化（自动更新按钮状态）
+        socket.on('exhibition_status', function(data) {
+            const executeBtn = document.getElementById('executePathBtn');
+            const stopBtn = document.getElementById('stopPathBtn');
+            
+            if (data.status === 'started') {
+                if (executeBtn) executeBtn.disabled = true;
+                if (stopBtn) {
+                    stopBtn.disabled = false;
+                    stopBtn.textContent = '⏹️ 中断执行';
+                    stopBtn.style.background = '#ff6b6b';
+                }
+                
+                addLog(`🎬 ${data.message}`, 'success');
+            } else if (data.status === 'stopped') {
+                if (executeBtn) executeBtn.disabled = false;
+                if (stopBtn) {
+                    stopBtn.disabled = true;
+                    stopBtn.textContent = '⏹️ 中断执行';
+                    stopBtn.style.background = '';
+                }
+                
+                addLog(`${data.message}`, data.user_initiated ? 'warning' : 'info');
+            }
+        });
+
+        // ============ 虚拟遥控器模块 ============
+
+// 注册虚拟遥控器的WebSocket事件（在socket连接成功后调用）
+function vrInitSocketEvents(s) {
+    vrSocket = s;
+    console.log('[VR] vrInitSocketEvents called, vrSocket 已设置');
+
+    s.on('virtual_remote_status', function(data) {
+        console.log('[VR] 收到 virtual_remote_status:', data);
+        if (data.initialized && data.running) {
+            vrDdsReady = true;
+            document.getElementById('vrStatusDot').classList.add('publishing');
+            document.getElementById('vrStatusText').textContent = '已就绪 - 遥控器可用';
+        }
+    });
+
+    s.on('virtual_remote_init_result', function(data) {
+        console.log('[VR] 收到 virtual_remote_init_result:', data);
+        if (data.success && data.running) {
+            vrDdsReady = true;
+            document.getElementById('vrStatusDot').classList.add('publishing');
+            document.getElementById('vrStatusText').textContent = '已就绪 - 遥控器可用';
+        } else {
+            vrDdsReady = false;
+            document.getElementById('vrStatusDot').classList.remove('connected', 'publishing');
+            document.getElementById('vrStatusText').textContent = '初始化失败: ' + (data.message || '');
+        }
+    });
+
+    s.on('virtual_remote_emergency_ack', function() {
+        document.getElementById('vrEmergencyBtn').classList.add('stopped');
+        document.getElementById('vrEmergencyBtn').textContent = '已停止 - 点击恢复';
+        addLog('虚拟遥控器紧急停止', 'warning');
+    });
+}
+
+// 页面加载后自动初始化虚拟遥控器（默认eth0，与参考项目一致）
+function vrAutoInit() {
+    console.log('[VR] vrAutoInit called, vrSocket=', vrSocket);
+    if (vrSocket) {
+        console.log('[VR] 发送 virtual_remote_init 事件');
+        vrSocket.emit('virtual_remote_init', { interface: 'eth0' });
+    } else {
+        console.log('[VR] vrSocket 为空，无法发送');
+    }
+}
+
+function vrEmergencyStop() {
+    var btn = document.getElementById('vrEmergencyBtn');
+    if (btn.classList.contains('stopped')) {
+        btn.classList.remove('stopped');
+        btn.textContent = '紧急停止';
+        vrSocket.emit('virtual_remote_reset');
+    } else {
+        vrSocket.emit('virtual_remote_emergency_stop');
+    }
+}
+
+// 按键处理
+document.querySelectorAll('[data-vr-btn]').forEach(function(btn) {
+    var name = btn.getAttribute('data-vr-btn');
+
+    function pressDown(e) {
+        if (e) e.preventDefault();
+        btn.classList.add('pressed');
+        vrPressedButtons.add(name);
+        if (!vrSocket) { console.error('[VR] vrSocket is null on pressDown'); return; }
+        vrSocket.emit('virtual_remote_button_down', { name: name });
+    }
+    function pressUp(e) {
+        if (e) e.preventDefault();
+        btn.classList.remove('pressed');
+        vrPressedButtons.delete(name);
+        if (!vrSocket) { console.error('[VR] vrSocket is null on pressUp'); return; }
+        vrSocket.emit('virtual_remote_button_up', { name: name });
+    }
+
+    btn.addEventListener('touchstart', pressDown);
+    btn.addEventListener('touchend', pressUp);
+    btn.addEventListener('touchcancel', pressUp);
+    btn.addEventListener('mousedown', pressDown);
+    btn.addEventListener('mouseup', pressUp);
+    btn.addEventListener('mouseleave', function(e) {
+        if (vrPressedButtons.has(name)) {
+            pressUp(e);
+        }
+    });
+});
+
+// 摇杆类
+function VRJoystick(areaId, thumbId, stickName) {
+    this.area = document.getElementById(areaId);
+    this.thumb = document.getElementById(thumbId);
+    this.stickName = stickName;
+    this.x = 0; this.y = 0;
+    this.active = false; this.touchId = null;
+
+    var self = this;
+    var maxDist = 50;
+
+    function getPos(e) {
+        var rect = self.area.getBoundingClientRect();
+        var cx = rect.left + rect.width / 2;
+        var cy = rect.top + rect.height / 2;
+        var clientX, clientY;
+        if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+        var dx = clientX - cx;
+        var dy = clientY - cy;
+        var dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > maxDist) {
+            dx = dx / dist * maxDist;
+            dy = dy / dist * maxDist;
+        }
+        return { x: dx / maxDist, y: -dy / maxDist };
+    }
+
+    function update(pos) {
+        self.x = pos.x;
+        self.y = pos.y;
+        var thumbRect = self.thumb.offsetWidth / 2;
+        self.thumb.style.left = 'calc(50% + ' + (pos.x * maxDist) + 'px)';
+        self.thumb.style.top = 'calc(50% + ' + (-pos.y * maxDist) + 'px)';
+        if (!vrSocket) { console.error('[VR] vrSocket is null on joystick update'); return; }
+        vrSocket.emit('virtual_remote_joystick', { stick: self.stickName, x: self.x, y: self.y });
+        self.updateDisplay();
+    }
+
+    this.updateDisplay = function() {
+        var valueEl = document.getElementById(self.stickName === 'left' ? 'vrLeftValue' : 'vrRightValue');
+        valueEl.textContent = 'X:' + self.x.toFixed(2) + ' Y:' + self.y.toFixed(2);
+    };
+
+    this.area.addEventListener('touchstart', function(e) {
+        e.preventDefault();
+        self.active = true;
+        self.touchId = e.changedTouches[0].identifier;
+        self.thumb.classList.add('active');
+        update(getPos(e));
+    }, { passive: false });
+
+    this.area.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+        if (!self.active) return;
+        for (var i = 0; i < e.touches.length; i++) {
+            if (e.touches[i].identifier === self.touchId) {
+                update({ touches: [e.touches[i]], clientX: e.touches[i].clientX, clientY: e.touches[i].clientY });
+                break;
+            }
+        }
+    }, { passive: false });
+
+    this.area.addEventListener('touchend', function(e) {
+        for (var i = 0; i < e.changedTouches.length; i++) {
+            if (e.changedTouches[i].identifier === self.touchId) {
+                self.active = false;
+                self.thumb.classList.remove('active');
+                update({ x: 0, y: 0 });
+                break;
+            }
+        }
+    });
+
+    this.area.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        self.active = true;
+        self.thumb.classList.add('active');
+        update(getPos(e));
+    });
+
+    document.addEventListener('mousemove', function(e) {
+        if (!self.active) return;
+        update(getPos(e));
+    });
+
+    document.addEventListener('mouseup', function(e) {
+        if (self.active) {
+            self.active = false;
+            self.thumb.classList.remove('active');
+            update({ x: 0, y: 0 });
+        }
+    });
+}
+
+var vrLeftJoystick = new VRJoystick('vrLeftJoystick', 'vrLeftThumb', 'left');
+var vrRightJoystick = new VRJoystick('vrRightJoystick', 'vrRightThumb', 'right');
+
+// 键盘支持
+var vrKeyMap = {
+    'KeyW': { type: 'joystick', stick: 'left', axis: 'y', value: 1 },
+    'KeyS': { type: 'joystick', stick: 'left', axis: 'y', value: -1 },
+    'KeyA': { type: 'joystick', stick: 'left', axis: 'x', value: -1 },
+    'KeyD': { type: 'joystick', stick: 'left', axis: 'x', value: 1 },
+    'ArrowUp': { type: 'joystick', stick: 'right', axis: 'y', value: 1 },
+    'ArrowDown': { type: 'joystick', stick: 'right', axis: 'y', value: -1 },
+    'ArrowLeft': { type: 'joystick', stick: 'right', axis: 'x', value: -1 },
+    'ArrowRight': { type: 'joystick', stick: 'right', axis: 'x', value: 1 },
+    'KeyQ': { type: 'button', name: 'L1' },
+    'KeyE': { type: 'button', name: 'R1' },
+    'KeyZ': { type: 'button', name: 'L2' },
+    'KeyC': { type: 'button', name: 'R2' },
+    'Digit1': { type: 'button', name: 'A' },
+    'Digit2': { type: 'button', name: 'B' },
+    'Digit3': { type: 'button', name: 'X' },
+    'Digit4': { type: 'button', name: 'Y' },
+    'Space': { type: 'emergency' },
+};
+
+var vrKeyboardJsState = { left: { x: 0, y: 0 }, right: { x: 0, y: 0 } };
+var vrKeyboardDownKeys = new Set();
+
+document.addEventListener('keydown', function(e) {
+    if (e.repeat) return;
+    var mapping = vrKeyMap[e.code];
+    if (!mapping) return;
+    e.preventDefault();
+
+    if (mapping.type === 'joystick') {
+        vrKeyboardJsState[mapping.stick][mapping.axis] = mapping.value;
+        var js = mapping.stick === 'left' ? vrLeftJoystick : vrRightJoystick;
+        js.x = vrKeyboardJsState[mapping.stick].x;
+        js.y = vrKeyboardJsState[mapping.stick].y;
+        vrSocket.emit('virtual_remote_joystick', { stick: mapping.stick, x: js.x, y: js.y });
+        js.updateDisplay();
+    } else if (mapping.type === 'button') {
+        if (!vrKeyboardDownKeys.has(e.code)) {
+            vrKeyboardDownKeys.add(e.code);
+            vrSocket.emit('virtual_remote_button_down', { name: mapping.name });
+            var el = document.querySelector('[data-vr-btn="' + mapping.name + '"]');
+            if (el) el.classList.add('pressed');
+        }
+    } else if (mapping.type === 'emergency') {
+        vrEmergencyStop();
+    }
+});
+
+document.addEventListener('keyup', function(e) {
+    var mapping = vrKeyMap[e.code];
+    if (!mapping) return;
+    e.preventDefault();
+
+    if (mapping.type === 'joystick') {
+        vrKeyboardJsState[mapping.stick][mapping.axis] = 0;
+        var js = mapping.stick === 'left' ? vrLeftJoystick : vrRightJoystick;
+        js.x = vrKeyboardJsState[mapping.stick].x;
+        js.y = vrKeyboardJsState[mapping.stick].y;
+        vrSocket.emit('virtual_remote_joystick', { stick: mapping.stick, x: js.x, y: js.y });
+        js.updateDisplay();
+    } else if (mapping.type === 'button') {
+        vrKeyboardDownKeys.delete(e.code);
+        vrSocket.emit('virtual_remote_button_up', { name: mapping.name });
+        var el = document.querySelector('[data-vr-btn="' + mapping.name + '"]');
+        if (el) el.classList.remove('pressed');
+    }
+});
+
+// 状态显示更新
+setInterval(function() {
+    document.getElementById('vrDispLx').textContent = vrLeftJoystick.x.toFixed(2);
+    document.getElementById('vrDispLy').textContent = vrLeftJoystick.y.toFixed(2);
+    document.getElementById('vrDispRx').textContent = vrRightJoystick.x.toFixed(2);
+    document.getElementById('vrDispRy').textContent = vrRightJoystick.y.toFixed(2);
+
+    var keys = 0;
+    var keyBits = { 'R1':0,'L1':1,'Start':2,'Select':3,'R2':4,'L2':5,'F1':6,'F3':7,'A':8,'B':9,'X':10,'Y':11,'Up':12,'Right':13,'Down':14,'Left':15 };
+    vrPressedButtons.forEach(function(name) {
+        var bit = keyBits[name];
+        if (bit !== undefined) keys |= (1 << bit);
+    });
+    document.getElementById('vrDispKeys').textContent = '0x' + keys.toString(16).padStart(4, '0');
+    document.getElementById('vrDispRate').textContent = vrDdsReady ? '100Hz' : '--';
+}, 200);
+
+// 组合键处理
+function vrPressCombo(btn) {
+    var combo = JSON.parse(btn.getAttribute('data-vr-combo'));
+    btn.classList.add('pressed');
+    combo.forEach(function(name) {
+        vrPressedButtons.add(name);
+        vrSocket.emit('virtual_remote_button_down', { name: name });
+        var el = document.querySelector('[data-vr-btn="' + name + '"]');
+        if (el) el.classList.add('pressed');
+    });
+    setTimeout(function() {
+        combo.forEach(function(name) {
+            vrPressedButtons.delete(name);
+            vrSocket.emit('virtual_remote_button_up', { name: name });
+            var el = document.querySelector('[data-vr-btn="' + name + '"]');
+            if (el) el.classList.remove('pressed');
+        });
+        btn.classList.remove('pressed');
+    }, 200);
+}
+
+function vrPressDblClick(btn) {
+    var keys = JSON.parse(btn.getAttribute('data-vr-dblclick'));
+    btn.classList.add('pressed');
+    function doPress() {
+        keys.forEach(function(name) {
+            vrPressedButtons.add(name);
+            vrSocket.emit('virtual_remote_button_down', { name: name });
+            var el = document.querySelector('[data-vr-btn="' + name + '"]');
+            if (el) el.classList.add('pressed');
+        });
+        setTimeout(function() {
+            keys.forEach(function(name) {
+                vrPressedButtons.delete(name);
+                vrSocket.emit('virtual_remote_button_up', { name: name });
+                var el = document.querySelector('[data-vr-btn="' + name + '"]');
+                if (el) el.classList.remove('pressed');
+            });
+        }, 150);
+    }
+    doPress();
+    setTimeout(doPress, 300);
+    setTimeout(function() { btn.classList.remove('pressed'); }, 500);
+}
+
+// 页面加载时自动加载已保存的路径列表（延迟1秒，确保Socket连接建立）
+setTimeout(() => {
+    loadSavedPathsList();
+}, 1000);
+
+        // WebSocket 事件监听
+        socket.on('navigation_status', function(data) {
+            if (data.status === 'started') {
+                updateNavigationStatus(true);
+            } else if (data.status === 'stopped') {
+                updateNavigationStatus(false);
+            }
+            addLog(data.message, data.status === 'started' ? 'success' : 'info');
+        });
+
+        socket.on('relocate_status', function(data) {
+            addLog(data.message, data.status === 'success' ? 'success' : 'error');
+            if (data.status === 'done') {
+                var oldIframe = document.getElementById('rvizIframe');
+                if (oldIframe && oldIframe.src) {
+                    addLog('正在强制刷新RViz画面...', 'info');
+                    var wsHost = location.hostname;
+                    
+                    function rebuildIframe(isSecond) {
+                        var ts = Date.now();
+                        var newSrc = 'http://' + wsHost + ':6080/vnc.html?autoconnect=true&resize=scale&t=' + ts;
+                        var newIframe = document.createElement('iframe');
+                        newIframe.id = 'rvizIframe';
+                        newIframe.allow = 'clipboard-read; clipboard-write';
+                        newIframe.title = 'RViz VNC';
+                        newIframe.style.cssText = 'width:100%;height:100%;border:none;';
+                        
+                        if (!isSecond) {
+                            newIframe.onload = function() {
+                                setTimeout(function() {
+                                    rebuildIframe(true);
+                                }, 3000);
+                            };
+                            addLog('第1次重建（初始连接）', 'info');
+                        } else {
+                            addLog('第2次重建（确保最新帧）', 'success');
+                        }
+                        
+                        newIframe.src = newSrc;
+                        var currentIframe = document.getElementById('rvizIframe');
+                        if (currentIframe) {
+                            currentIframe.parentNode.replaceChild(newIframe, currentIframe);
+                        }
+                    }
+                    
+                    rebuildIframe(false);
+                }
+            }
+        });
+    </script>
+
+    <script>
+    // ============ 键盘控制模块 ============
+    (function() {
+        var kbEnabled = false;
+        var kbPressedKeys = new Set();
+
+        window.keyboardEnable = function() {
+            console.log('[KB] keyboardEnable called, socket=', !!window.socket);
+            if (!window.socket) {
+                alert('WebSocket未连接');
+                return;
+            }
+            window.socket.emit('keyboard_enable');
+            console.log('[KB] 已发送 keyboard_enable 事件');
+        };
+
+        window.keyboardDisable = function() {
+            if (!window.socket) return;
+            window.socket.emit('keyboard_disable');
+        };
+
+        function updateKeyboardUI(status) {
+            if (!status) return;
+
+            var enabled = status.enabled === true;
+            kbEnabled = enabled;
+
+            // 按钮
+            var enableBtn = document.getElementById('kbEnableBtn');
+            var disableBtn = document.getElementById('kbDisableBtn');
+            if (enableBtn) enableBtn.disabled = enabled;
+            if (disableBtn) disableBtn.disabled = !enabled;
+
+            // 状态指示
+            var dot = document.getElementById('kbStatusDot');
+            var text = document.getElementById('kbStatusText');
+            var panel = document.getElementById('kbdStatusPanel');
+            var modeTag = document.getElementById('kbModeTag');
+
+            if (enabled && dot && text) {
+                dot.style.background = '#4ade80';
+                text.textContent = '已启用 - 按键控制中';
+                dot.style.animation = 'pulse 1.5s infinite';
+                if (panel) panel.style.display = 'block';
+                if (modeTag) modeTag.style.display = 'inline-block';
+            } else if (dot && text) {
+                dot.style.background = '#ef4444';
+                text.textContent = '未启用';
+                dot.style.animation = '';
+                if (panel) panel.style.display = 'none';
+                if (modeTag) modeTag.style.display = 'none';
+                kbPressedKeys.clear();
+            }
+
+            // 状态面板数据
+            if (status.mode) {
+                var el = document.getElementById('kbModeDisplay');
+                if (el) el.textContent = status.mode === 'arm' ? 'Arm (机械臂)' : 'FSM (运动状态)';
+                if (modeTag) { modeTag.textContent = status.mode.toUpperCase(); modeTag.style.background = status.mode === 'arm' ? '#3b82f6' : '#f59e0b'; }
+            }
+            if (status.gear_name) {
+                var el = document.getElementById('kbGearDisplay');
+                if (el) el.textContent = status.gear + '(' + status.gear_name + ')';
+            }
+            if (status.target) {
+                var el = document.getElementById('kbTargetDisplay');
+                if (el) el.textContent = '(' + status.target[0].toFixed(3) + ', ' + status.target[1].toFixed(3) + ', ' + status.target[2].toFixed(3) + ')';
+            }
+            if (status.send) {
+                var el = document.getElementById('kbSendDisplay');
+                if (el) el.textContent = '(' + status.send[0].toFixed(3) + ', ' + status.send[1].toFixed(3) + ', ' + status.send[2].toFixed(3) + ')';
+            }
+            var armEl = document.getElementById('kbArmDisplay');
+            if (armEl) { armEl.textContent = status.arm_executing ? '执行中...' : '空闲'; armEl.style.color = status.arm_executing ? '#fbbf24' : '#4ade80'; }
+        }
+
+        // 注册事件监听（延迟到DOM加载后确保socket可用）
+        function initKeyboardEvents() {
+            if (!window.socket) {
+                console.error('[KB] socket不可用，延迟注册事件');
+                setTimeout(initKeyboardEvents, 500);
+                return;
+            }
+
+            console.log('[KB] 开始注册事件监听...');
+
+            window.socket.on('keyboard_result', function(data) {
+                console.log('[KB] 收到 keyboard_result:', data);
+                try { if (typeof addLog === 'function') addLog('[键盘] ' + data.message, data.success ? 'success' : 'error'); } catch(e) {}
+            });
+
+            window.socket.on('keydown_result', function(data) {
+                console.log('[KB] 收到 keydown_result:', data);
+                var keyEl = document.getElementById('kbKeyLogDisplay');
+                if (keyEl && data.message) keyEl.textContent = data.key + ': ' + data.message;
+                if (data.result) {
+                    if (data.result.type === 'mode_change') { try { if (typeof addLog === 'function') addLog('[键盘] ' + data.message, 'info'); } catch(e) {} }
+                    else if (data.result.type === 'error') { try { if (typeof addLog === 'function') addLog('[键盘] ' + data.message, 'error'); } catch(e) {} }
+                    else if (data.result.type === 'busy') { try { if (typeof addLog === 'function') addLog('[键盘] ' + data.message, 'warning'); } catch(e) {} }
+                }
+            });
+
+            window.socket.on('keyboard_status', function(data) {
+                console.log('[KB] 收到 keyboard_status:', data);
+                updateKeyboardUI(data);
+            });
+
+            console.log('[KB] ✅ 所有事件监听已注册');
+
+            // 全局键盘监听
+            document.addEventListener('keydown', function(e) {
+                if (!kbEnabled) return;
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+                var key = e.key;
+                if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].indexOf(key) !== -1) e.preventDefault();
+                if (kbPressedKeys.has(key)) return;
+                kbPressedKeys.add(key);
+                window.socket.emit('keydown', { key: key });
+            });
+
+            document.addEventListener('keyup', function(e) {
+                if (!kbEnabled) return;
+                var key = e.key;
+                kbPressedKeys.delete(key);
+                window.socket.emit('keyup', { key: key });
+            });
+
+            window.addEventListener('blur', function() {
+                if (kbEnabled && kbPressedKeys.size > 0) {
+                    kbPressedKeys.forEach(function(k) { window.socket.emit('keyup', { key: k }); });
+                    kbPressedKeys.clear();
+                }
+            });
+
+            // 定时刷新状态
+            setInterval(function() {
+                if (kbEnabled && window.socket) {
+                    window.socket.emit('keyboard_get_status');
+                }
+            }, 500);
+
+            console.log('[KB] ✅ 键盘控制模块初始化完成');
+        }
+
+        // 页面加载后初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initKeyboardEvents);
+        } else {
+            initKeyboardEvents();
+        }
+    })();
+    </script>
+
+    <script>
+    // ============ 语音动作输出模块 ============
+    (function() {
+        var selectedActionId = null;
+        var vaExecuting = false;
+
+        function updateStatus(ready, executing) {
+            var dot = document.getElementById('vaStatusDot');
+            var text = document.getElementById('vaStatusText');
+            if (!dot || !text) return;
+            if (executing) {
+                dot.style.background = '#f59e0b';
+                dot.style.animation = 'pulse 1s infinite';
+                text.textContent = '执行中...';
+            } else if (ready) {
+                dot.style.background = '#4ade80';
+                dot.style.animation = '';
+                text.textContent = '系统就绪';
+            } else {
+                dot.style.background = '#ef4444';
+                dot.style.animation = '';
+                text.textContent = '未就绪';
+            }
+        }
+
+        function showResult(data) {
+            var panel = document.getElementById('vaResultPanel');
+            var content = document.getElementById('vaResultContent');
+            if (!panel || !content) return;
+            panel.style.display = 'block';
+
+            var html = '<div style="margin-bottom:8px;"><strong style="color:#' + (data.status === 'completed' ? '4ade80' : data.status === 'error' ? 'f87171' : 'fbbf24') + ';">[' + data.status.toUpperCase() + ']</strong> ' + (data.message || '') + '</div>';
+            if (data.results && Array.isArray(data.results)) {
+                html += '<table style="width:100%;font-size:0.9em;">';
+                data.results.forEach(function(r) {
+                    html += '<tr><td style="color:#94a3b8;padding:2px 4px;">' + r.step + '</td><td style="color:' + (r.success ? '#4ade80' : '#f87171') + ';padding:2px 4px;">' + (r.success ? '✓' : '✗') + '</td><td>' + r.message + '</td></tr>';
+                });
+                html += '</table>';
+            } else if (data.step) {
+                html += '<span style="color:#94a3b8;">' + data.step + ': </span> ' + (data.message || '');
+            }
+            content.innerHTML = html;
+        }
+
+        function renderActions(actions) {
+            var grid = document.getElementById('vaActionGrid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            Object.keys(actions).forEach(function(id) {
+                var a = actions[id];
+                var btn = document.createElement('button');
+                btn.className = 'va-action-btn';
+                btn.dataset.id = id;
+                btn.innerHTML = '<span class="action-name">' + id + '. ' + a.name + '</span><span class="action-desc">' + a.desc + '</span>';
+                btn.onclick = function() { selectAction(parseInt(id)); };
+                grid.appendChild(btn);
+            });
+        }
+
+        function renderPresets(presets) {
+            var container = document.getElementById('vaPresetContainer');
+            if (!container) return;
+            container.innerHTML = '';
+            Object.keys(presets).forEach(function(cat) {
+                var p = presets[cat];
+                var div = document.createElement('div');
+                div.className = 'va-preset-category';
+                div.innerHTML = '<div class="va-preset-category-title">' + p.label + '</div>';
+                p.voices.forEach(function(v) {
+                    var item = document.createElement('span');
+                    item.className = 'va-preset-item';
+                    item.textContent = v.length > 15 ? v.substring(0, 15) + '...' : v;
+                    item.title = v;
+                    item.onclick = function() {
+                        var ta = document.getElementById('vaTextInput');
+                        if (ta) { ta.value = v; ta.focus(); }
+                    };
+                    div.appendChild(item);
+                });
+                container.appendChild(div);
+            });
+        }
+
+        window.selectAction = function(id) {
+            selectedActionId = id;
+            document.querySelectorAll('.va-action-btn').forEach(function(btn) {
+                btn.classList.toggle('selected', parseInt(btn.dataset.id) === id);
+            });
+        };
+
+        window.voiceExecute = function() {
+            if (vaExecuting || !window.socket) return;
+            var text = (document.getElementById('vaTextInput').value || '').trim();
+            window.socket.emit('voice_action_execute', {
+                text: text,
+                action_id: selectedActionId,
+                auto_reset: document.getElementById('vaAutoReset').checked
+            });
+            showResult({ status: 'executing', message: '正在执行动作+语音...' });
+        };
+
+        window.voiceSpeakOnly = function() {
+            if (vaExecuting || !window.socket) return;
+            var text = (document.getElementById('vaTextInput').value || '').trim();
+            if (!text) { showResult({ status: 'error', message: '请输入文本内容' }); return; }
+            window.socket.emit('voice_speak_only', { text: text });
+            showResult({ status: 'executing', message: '正在播放语音...' });
+        };
+
+        window.voiceActionOnly = function() {
+            if (vaExecuting || !window.socket) return;
+            if (selectedActionId === null) { showResult({ status: 'error', message: '请先选择一个动作' }); return; }
+            window.socket.emit('voice_action_only', { action_id: selectedActionId });
+            showResult({ status: 'executing', message: '正在执行动作...' });
+        };
+
+        window.voiceResetArm = function() {
+            if (!window.socket) return;
+            window.socket.emit('voice_reset_arm');
+            showResult({ status: 'executing', message: '正在复位手臂...' });
+        };
+
+        function initVoiceEvents() {
+            if (!window.socket) {
+                setTimeout(initVoiceEvents, 500);
+                return;
+            }
+
+            window.socket.on('voice_action_status', function(data) {
+                vaExecuting = data.status === 'executing';
+                showResult(data);
+
+                // 更新按钮状态
+                var execBtn = document.getElementById('vaExecuteBtn');
+                var speakBtn = document.getElementById('vaSpeakBtn');
+                var actBtn = document.getElementById('vaActionBtn');
+                if (execBtn) execBtn.disabled = vaExecuting;
+                if (speakBtn) speakBtn.disabled = vaExecuting;
+                if (actBtn) actBtn.disabled = vaExecuting;
+            });
+
+            // 加载动作列表和预设
+            fetch('/api/voice_actions')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    renderActions(data.actions);
+                    renderPresets(data.preset_voices);
+                    updateStatus(data.ready, false);
+                })
+                .catch(function(e) { console.error('[VA] 加载失败:', e); });
+
+            console.log('[VA] ✅ 语音动作模块初始化完成');
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initVoiceEvents);
+        } else {
+            initVoiceEvents();
+        }
+    })();
+    </script>
+</body>
+</html>

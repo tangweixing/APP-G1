@@ -1,0 +1,3 @@
+识别时间: 2026-04-17 20:18:04
+识别结果:
+分析过程出错：'ascii' codec can't encode characters in position 7-10: ordinal not in range(128)

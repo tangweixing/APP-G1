@@ -1,0 +1,9 @@
+
+<launch>
+    <arg name="target_frame" default="base_link" />
+    <node pkg="tool" type="body2any_pointcloud" name="body2any_pointcloud" output="screen">
+        <param name="target_frame" value="$(arg target_frame)" />
+        <remap from="/base_cloud" to="$(arg target_frame)_cloud" />
+        <remap from="/velodyne_points" to="velodyne_points" />
+    </node>
+</launch>

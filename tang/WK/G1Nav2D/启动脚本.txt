@@ -1,0 +1,7 @@
+运行前先source
+
+rosrun map_server map_saver map:=/projected_map -f /home/nvidia/mymap
+
+rosbag record /tf /local_traversibility_ponit_cloud /free_paths /path /smooth_planned_path
+
+

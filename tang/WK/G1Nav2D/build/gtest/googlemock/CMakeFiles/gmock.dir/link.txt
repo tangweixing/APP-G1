@@ -1,0 +1,1 @@
+/bin/c++ -fPIC -O3 -DNDEBUG  -shared -Wl,-soname,libgmock.so -o ../lib/libgmock.so CMakeFiles/gmock.dir/src/gmock-all.cc.o  -Wl,-rpath,/home/unitree/tang/WK/G1Nav2D/build/gtest/lib ../lib/libgtest.so -lpthread 
