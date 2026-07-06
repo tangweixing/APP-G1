@@ -75,18 +75,22 @@
 					<view class="form-row">
 						<text class="label">对话语言</text>
 						<picker class="picker" :range="languageOptions" range-key="label" :value="languageIdx" @change="onLanguageChange">
-							<view class="picker-text">{{ languageOptions[languageIdx].label }}</view>
+							<view class="picker-text">{{ languageOptions[languageIdx].label || '请选择' }}</view>
 						</picker>
 					</view>
 
 					<view class="form-row">
 						<text class="label">LLM 模型</text>
-						<input class="input" v-model="config.llm_model" placeholder="如 qwen / glm-4 / deepseek-v3" />
+						<picker class="picker" :range="modelOptions" range-key="label" :value="modelIdx" @change="onModelChange">
+							<view class="picker-text">{{ modelOptions[modelIdx].label || '请选择' }}</view>
+						</picker>
 					</view>
 
-					<view class="form-row form-col">
-						<text class="label">角色音色 (tts_voice)</text>
-						<input class="input" v-model="config.tts_voice" placeholder="如 zh_female_wanwanxiaohe_moon_bigtts" />
+					<view class="form-row">
+						<text class="label">角色音色</text>
+						<picker class="picker" :range="voiceOptions" range-key="label" :value="voiceIdx" @change="onVoiceChange">
+							<view class="picker-text">{{ voiceOptions[voiceIdx].label || '请选择' }}</view>
+						</picker>
 					</view>
 
 					<view class="form-row">
@@ -165,13 +169,14 @@ export default Vue.extend({
 			optimizing: false,
 			applying: false,
 
-			// 选项
-			languageOptions: [
-				{ label: '中文', value: 'zh' },
-				{ label: 'English', value: 'en' },
-				{ label: '日本語', value: 'ja' },
-			],
+			// 选项（动态拉取，跟控制台一致）
+			languageOptions: [],  // [{label:'中文', value:'zh'}, ...]
 			languageIdx: 0,
+			modelOptions: [],     // [{label:'Qwen', value:'qwen'}, ...]
+			modelIdx: 0,
+			voiceOptions: [],     // [{label:'湾湾小何', value:'zh_female_...'}, ...] 随语言联动
+			voiceIdx: 0,
+			ttsVoices: {},        // {zh:[...], en:[...], ...} 全部音色，按语言分组
 			speedOptions: ['slow', 'normal', 'fast'],
 			speedIdx: 1,
 
@@ -215,13 +220,74 @@ export default Vue.extend({
 				if (d.logged_in) {
 					self.loggedIn = true;
 					self.addLog('success', '已登录控制台');
-					self.loadAgents();
+					// 先拉选项数据，再列智能体（loadConfig 时要用来匹配 picker）
+					self.loadOptions().then(function() {
+						self.loadAgents();
+					}).catch(function() {
+						self.loadAgents();
+					});
 				} else {
 					self.loggedIn = false;
 				}
 			}).catch(function() {
 				self.loggedIn = false;
 			});
+		},
+
+		// 语言代码 → 中文名映射（跟控制台 i18n 一致）
+		LANG_NAMES: {
+			zh: '中文', en: 'English', ja: '日本語', yue: '粤语', vi: 'Tiếng Việt',
+			fr: 'Français', ar: 'العربية', es: 'Español', ru: 'Русский', ko: '한국어',
+			it: 'Italiano', id: 'Bahasa Indonesia', hi: 'हिन्दी', fi: 'Suomi', th: 'ไทย',
+			de: 'Deutsch', pt: 'Português', uk: 'Українська', tr: 'Türkçe', cs: 'Čeština',
+			pl: 'Polski', ro: 'Română', ms: 'Bahasa Melayu', sl: 'Slovenščina', nl: 'Nederlands',
+			bg: 'Български', da: 'Dansk', he: 'עברית', sk: 'Slovenčina', sv: 'Svenska',
+			hr: 'Hrvatski', hu: 'Magyar', ca: 'Català', fa: 'فارسی', el: 'Ελληνικά',
+			no: 'Norsk', fil: 'Filipino',
+		},
+
+		// ===== 拉取选项（语言/模型/音色，跟控制台一致）=====
+		loadOptions: function() {
+			var self = this;
+			// 并行拉模型和音色列表
+			var p1 = g1Api.agentModels().then(function(r) {
+				if (r.success && r.data && r.data.models) {
+					self.modelOptions = r.data.models.map(function(m) {
+						return { label: m.description || m.name, value: m.name };
+					});
+				}
+			}).catch(function() {});
+
+			var p2 = g1Api.agentTtsList().then(function(r) {
+				if (r.success && r.data) {
+					var langs = r.data.languages || [];
+					self.languageOptions = langs.map(function(code) {
+						return { label: self.LANG_NAMES[code] || code, value: code };
+					});
+					self.ttsVoices = r.data.tts_voices || {};
+				}
+			}).catch(function() {});
+
+			return Promise.all([p1, p2]);
+		},
+
+		// 根据当前语言刷新音色下拉选项
+		refreshVoices: function() {
+			var lang = this.config.language || 'zh';
+			var list = this.ttsVoices[lang] || [];
+			// top=true 的排前面（跟控制台一致）
+			list = list.slice().sort(function(a, b) {
+				return (b.top ? 1 : 0) - (a.top ? 1 : 0);
+			});
+			this.voiceOptions = list.map(function(v) {
+				return { label: v.voice_name + (v.top ? ' ★' : ''), value: v.voice_id };
+			});
+			// 匹配当前 tts_voice
+			this.voiceIdx = 0;
+			var cur = this.config.tts_voice || '';
+			for (var i = 0; i < this.voiceOptions.length; i++) {
+				if (this.voiceOptions[i].value === cur) { this.voiceIdx = i; break; }
+			}
 		},
 
 		// ===== token 登录 =====
@@ -331,18 +397,39 @@ export default Vue.extend({
 
 		syncPickers: function() {
 			var self = this;
+			// 语言
 			this.languageIdx = 0;
 			this.languageOptions.forEach(function(o, i) {
 				if (o.value === self.config.language) self.languageIdx = i;
 			});
-			// 语速支持 slow/normal/fast 字符串
+			// 音色随语言联动
+			this.refreshVoices();
+			// 模型
+			this.modelIdx = 0;
+			this.modelOptions.forEach(function(o, i) {
+				if (o.value === self.config.llm_model) self.modelIdx = i;
+			});
+			// 语速
 			this.speedIdx = this.speedOptions.indexOf(this.config.tts_speech_speed);
-			if (this.speedIdx < 0) this.speedIdx = 1; // 默认 normal
+			if (this.speedIdx < 0) this.speedIdx = 1;
 		},
 
 		onLanguageChange: function(e) {
 			this.languageIdx = e.detail.value;
 			this.config.language = this.languageOptions[this.languageIdx].value;
+			// 语言变了，音色列表跟着变，默认选该语言第一个音色
+			this.refreshVoices();
+			if (this.voiceOptions.length > 0) {
+				this.config.tts_voice = this.voiceOptions[0].value;
+			}
+		},
+		onModelChange: function(e) {
+			this.modelIdx = e.detail.value;
+			this.config.llm_model = this.modelOptions[this.modelIdx].value;
+		},
+		onVoiceChange: function(e) {
+			this.voiceIdx = e.detail.value;
+			this.config.tts_voice = this.voiceOptions[this.voiceIdx].value;
 		},
 		onPitchChange: function(e) {
 			this.config.tts_pitch = e.detail.value;

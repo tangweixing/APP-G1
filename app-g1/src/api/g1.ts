@@ -128,7 +128,7 @@ export function getStatus() {
 export function getActions() {
   return request({ url: '/api/actions' })
 }
-
+ 
 /** 设置运动速度 */
 export function setVelocity(vx: number, vy: number, wz: number) {
   return request({
@@ -298,6 +298,21 @@ export function agentVoices() {
   return request({ url: '/api/agent/voices' })
 }
 
+/** LLM 模型列表（动态，跟控制台一致） */
+export function agentModels() {
+  return request({ url: '/api/agent/models' })
+}
+
+/** 音色+语言列表（音色按语言分组，跟控制台一致） */
+export function agentTtsList() {
+  return request({ url: '/api/agent/tts_list' })
+}
+
+/** 角色模板列表（套用预设角色） */
+export function agentTemplates() {
+  return request({ url: '/api/agent/templates' })
+}
+
 /** AI 优化人设 */
 export function agentOptimizeCharacter(character: string) {
   return request({ url: '/api/agent/optimize_character', method: 'POST', data: { character } })
@@ -342,6 +357,9 @@ export default {
   agentGetConfig,
   agentSaveConfig,
   agentVoices,
+  agentModels,
+  agentTtsList,
+  agentTemplates,
   agentOptimizeCharacter,
   agentApply,
   getDefaultServerIp,

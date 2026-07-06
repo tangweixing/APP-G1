@@ -165,8 +165,10 @@ def list_agents():
     ok, data, status = _xz_request("GET", "/agents", token=token)
     if not ok:
         return False, data, status
+    # 兼容两种嵌套：{items:[...]} 或 {items:{data:[...]}}
     items = data.get("items") if isinstance(data, dict) and "items" in data else data
     if isinstance(items, dict):
+        # 嵌套结构，取 items.data
         items = items.get("data") or []
     if not isinstance(items, list):
         items = []
@@ -186,6 +188,7 @@ def get_config():
     ok, data, status = _xz_request("GET", f"/agents/{aid}", token=token)
     if not ok:
         return False, data, status
+    # 解嵌套: data -> data.data -> data.data.agent
     agent = data
     if isinstance(agent, dict) and isinstance(agent.get("data"), dict):
         agent = agent["data"]
@@ -217,6 +220,7 @@ def list_voices():
         ok, data, status = _xz_request("GET", path, token=token)
         if status != 404:
             if ok:
+                # 解嵌套
                 items = data
                 if isinstance(items, dict) and isinstance(items.get("data"), (list, dict)):
                     items = items["data"]
@@ -227,6 +231,59 @@ def list_voices():
                 return True, {"items": items}, status
             return False, data, status
     return True, {"items": []}, 200
+
+
+def list_models():
+    """GET /api/roles/model-list，LLM 模型列表。
+
+    返回 {success, data:{modelList:[{name, description, ...}]}}，
+    扁平化返回 modelList。
+    """
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    ok, data, status = _xz_request("GET", "/roles/model-list", token=token)
+    if not ok:
+        return False, data, status
+    ml = data.get("data", {}).get("modelList") if isinstance(data, dict) else None
+    if not isinstance(ml, list):
+        ml = []
+    return True, {"models": ml}, status
+
+
+def get_tts_list():
+    """GET /api/user/tts-list，音色 + 语言列表。
+
+    返回 {success, data:{languages:[...], tts_voices:{lang:[voice...]}}}。
+    原样返回 data（前端按 language 分组取音色）。
+    """
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    ok, data, status = _xz_request("GET", "/user/tts-list", token=token)
+    if not ok:
+        return False, data, status
+    d = data.get("data") if isinstance(data, dict) else data
+    if not isinstance(d, dict):
+        d = {"languages": [], "tts_voices": {}}
+    return True, d, status
+
+
+def list_templates():
+    """GET /api/roles/templates，角色模板。
+
+    返回 {success, data:{templates:[{name, voice, language, character}]}}。
+    """
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    ok, data, status = _xz_request("GET", "/roles/templates", token=token)
+    if not ok:
+        return False, data, status
+    tpls = data.get("data", {}).get("templates") if isinstance(data, dict) else None
+    if not isinstance(tpls, list):
+        tpls = []
+    return True, {"templates": tpls}, status
 
 
 def optimize_character(character_text):

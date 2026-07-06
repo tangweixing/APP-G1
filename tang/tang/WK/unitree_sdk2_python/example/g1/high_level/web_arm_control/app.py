@@ -4399,6 +4399,27 @@ def agent_voices():
     return _agent_result(ok, data, status)
 
 
+@app.route('/api/agent/models', methods=['GET'])
+def agent_models():
+    """LLM 模型列表（动态拉取，跟控制台一致）。"""
+    ok, data, status = xiaozhi_proxy.list_models()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/tts_list', methods=['GET'])
+def agent_tts_list():
+    """音色 + 语言列表（音色按语言分组，跟控制台一致）。"""
+    ok, data, status = xiaozhi_proxy.get_tts_list()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/templates', methods=['GET'])
+def agent_templates():
+    """角色模板列表（套用预设角色）。"""
+    ok, data, status = xiaozhi_proxy.list_templates()
+    return _agent_result(ok, data, status)
+
+
 @app.route('/api/agent/optimize_character', methods=['POST'])
 def agent_optimize_character():
     """AI 优化人设。body: {character}。"""
