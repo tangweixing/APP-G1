@@ -95,7 +95,7 @@
 
 					<view class="form-row">
 						<text class="label">音调 ({{ config.tts_pitch }})</text>
-						<slider :min="-10" :max="10" :step="1" :value="config.tts_pitch" @change="onPitchChange" activeColor="#28a745" />
+						<slider :min="-10" :max="10" :step="1" :value="config.tts_pitch" @changing="onPitchChanging" @change="onPitchChange" activeColor="#28a745" block-size="20" />
 					</view>
 					<view class="form-row">
 						<text class="label">语速</text>
@@ -234,16 +234,16 @@ export default Vue.extend({
 			});
 		},
 
-		// 语言代码 → 中文名映射（跟控制台 i18n 一致）
+		// 语言代码 → 中文显示名（全中文，跟控制台 i18n 一致）
 		LANG_NAMES: {
-			zh: '中文', en: 'English', ja: '日本語', yue: '粤语', vi: 'Tiếng Việt',
-			fr: 'Français', ar: 'العربية', es: 'Español', ru: 'Русский', ko: '한국어',
-			it: 'Italiano', id: 'Bahasa Indonesia', hi: 'हिन्दी', fi: 'Suomi', th: 'ไทย',
-			de: 'Deutsch', pt: 'Português', uk: 'Українська', tr: 'Türkçe', cs: 'Čeština',
-			pl: 'Polski', ro: 'Română', ms: 'Bahasa Melayu', sl: 'Slovenščina', nl: 'Nederlands',
-			bg: 'Български', da: 'Dansk', he: 'עברית', sk: 'Slovenčina', sv: 'Svenska',
-			hr: 'Hrvatski', hu: 'Magyar', ca: 'Català', fa: 'فارسی', el: 'Ελληνικά',
-			no: 'Norsk', fil: 'Filipino',
+			zh: '中文', en: '英语', ja: '日语', yue: '粤语', vi: '越南语',
+			fr: '法语', ar: '阿拉伯语', es: '西班牙语', ru: '俄语', ko: '韩语',
+			it: '意大利语', id: '印尼语', hi: '印地语', fi: '芬兰语', th: '泰语',
+			de: '德语', pt: '葡萄牙语', uk: '乌克兰语', tr: '土耳其语', cs: '捷克语',
+			pl: '波兰语', ro: '罗马尼亚语', ms: '马来语', sl: '斯洛文尼亚语', nl: '荷兰语',
+			bg: '保加利亚语', da: '丹麦语', he: '希伯来语', sk: '斯洛伐克语', sv: '瑞典语',
+			hr: '克罗地亚语', hu: '匈牙利语', ca: '加泰罗尼亚语', fa: '波斯语', el: '希腊语',
+			no: '挪威语', fil: '菲律宾语',
 		},
 
 		// ===== 拉取选项（语言/模型/音色，跟控制台一致）=====
@@ -431,7 +431,12 @@ export default Vue.extend({
 			this.voiceIdx = e.detail.value;
 			this.config.tts_voice = this.voiceOptions[this.voiceIdx].value;
 		},
+		onPitchChanging: function(e) {
+			// 拖动过程中实时更新（让数字跟着动，避免滑块卡住的视觉错觉）
+			this.config.tts_pitch = e.detail.value;
+		},
 		onPitchChange: function(e) {
+			// 松手时最终确认
 			this.config.tts_pitch = e.detail.value;
 		},
 		onSpeedChange: function(e) {
