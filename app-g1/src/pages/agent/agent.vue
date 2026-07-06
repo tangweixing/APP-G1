@@ -104,9 +104,9 @@
 						</picker>
 					</view>
 
-					<view class="form-row form-col">
-						<text class="label">人设 / 角色提示词</text>
-						<textarea class="textarea" v-model="config.character" placeholder="智能体人设描述" :maxlength="-1" auto-height></textarea>
+					<view class="form-row">
+						<text class="label">人设提示词</text>
+						<input class="input" v-model="config.character" placeholder="智能体人设描述" />
 					</view>
 
 					<view class="form-row form-col">
