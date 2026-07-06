@@ -131,7 +131,7 @@
 
 					<view class="form-row form-col">
 						<view class="label-row">
-							<text class="label">知识库</text>
+							<text class="label label-inline">知识库</text>
 							<button class="btn-config-kb" @click="goKbManage">配置</button>
 						</view>
 						<view class="checkbox-group">
@@ -699,8 +699,9 @@ export default Vue.extend({
 .pitch-slider{flex:1;margin:0 8px}
 
 .section-divider{font-size:13px;color:#9af;font-weight:600;margin:18px 0 10px;padding:6px 0;border-top:1px solid #333;border-bottom:1px solid #333}
-.label-row{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:4px}
-.btn-config-kb{background:#2a4a7a;color:#fff;border:none;border-radius:6px;font-size:11px;padding:3px 12px;line-height:1.6}
+.label-row{display:flex;align-items:center;width:100%;margin-bottom:4px}
+.label-inline{width:auto !important;flex-shrink:0;padding-right:8px}
+.btn-config-kb{background:#2a4a7a;color:#fff;border:none;border-radius:6px;font-size:11px;padding:3px 12px;line-height:1.6;margin-left:8px}
 .switch-hint{margin-left:10px;font-size:12px;color:#888}
 .checkbox-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;width:100%}
 .checkbox-item{display:flex;align-items:center;background:#1a1a2e;border:1px solid #444;border-radius:6px;padding:8px 12px;margin-right:6px;margin-bottom:6px}
