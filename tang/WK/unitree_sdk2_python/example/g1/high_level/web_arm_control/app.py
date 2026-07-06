@@ -4469,11 +4469,13 @@ def agent_kb_update():
     return _agent_result(ok, data, status)
 
 
-@app.route('/api/agent/kb/delete', methods=['POST'])
+@app.route('/api/agent/kb/delete', methods=['GET'])
 def agent_kb_delete():
-    """删知识库。body: {id}"""
-    body = request.get_json() or {}
-    kb_id = body.get("id")
+    """删知识库。?id=X
+
+    用 GET + query param，避免 Werkzeug 2.3 对 application/json 空 body 的 400。
+    """
+    kb_id = request.args.get("id")
     if not kb_id:
         return jsonify({"success": False, "message": "缺少 id"}), 400
     ok, data, status = xiaozhi_proxy.delete_knowledge_base(kb_id)

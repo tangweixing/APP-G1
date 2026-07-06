@@ -340,9 +340,9 @@ export function kbUpdate(id: number, name: string, description: string = '') {
   return request({ url: '/api/agent/kb/update', method: 'POST', data: { id, name, description } })
 }
 
-/** 删知识库 */
+/** 删知识库（GET + query param，避免 Werkzeug 2.3 空 body 400） */
 export function kbDelete(id: number) {
-  return request({ url: '/api/agent/kb/delete', method: 'POST', data: { id } })
+  return request({ url: `/api/agent/kb/delete?id=${id}`, method: 'GET' })
 }
 
 /** AI 优化人设 */
