@@ -154,7 +154,11 @@ def logout():
 
 
 def list_agents():
-    """GET /api/agents，列智能体。"""
+    """GET /api/agents，列智能体。
+
+    xiaozhi 返回结构是 {data: {data: [...], pagination, success}}，
+    真正的智能体数组在 data.data.data，取出来扁平化返回。
+    """
     token = _get_token()
     if not token:
         return False, "未登录", 401
@@ -162,11 +166,19 @@ def list_agents():
     if not ok:
         return False, data, status
     items = data.get("items") if isinstance(data, dict) and "items" in data else data
+    if isinstance(items, dict):
+        items = items.get("data") or []
+    if not isinstance(items, list):
+        items = []
     return True, {"items": items}, status
 
 
 def get_config():
-    """GET /api/agents/{id}，读当前配置。"""
+    """GET /api/agents/{id}，读当前配置。
+
+    xiaozhi 返回 {data:{data:{agent:{...}, message, success}}}，
+    真正配置在 data.data.agent，取出来扁平化返回。
+    """
     token = _get_token()
     if not token:
         return False, "未登录", 401
@@ -174,7 +186,14 @@ def get_config():
     ok, data, status = _xz_request("GET", f"/agents/{aid}", token=token)
     if not ok:
         return False, data, status
-    return True, data, status
+    agent = data
+    if isinstance(agent, dict) and isinstance(agent.get("data"), dict):
+        agent = agent["data"]
+    if isinstance(agent, dict) and isinstance(agent.get("agent"), dict):
+        agent = agent["agent"]
+    if not isinstance(agent, dict):
+        agent = {}
+    return True, agent, status
 
 
 def save_config(config):
@@ -198,7 +217,13 @@ def list_voices():
         ok, data, status = _xz_request("GET", path, token=token)
         if status != 404:
             if ok:
-                items = data.get("items") if isinstance(data, dict) and "items" in data else data
+                items = data
+                if isinstance(items, dict) and isinstance(items.get("data"), (list, dict)):
+                    items = items["data"]
+                if isinstance(items, dict) and isinstance(items.get("data"), (list, dict)):
+                    items = items["data"]
+                if not isinstance(items, list):
+                    items = []
                 return True, {"items": items}, status
             return False, data, status
     return True, {"items": []}, 200

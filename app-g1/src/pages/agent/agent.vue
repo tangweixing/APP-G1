@@ -81,16 +81,12 @@
 
 					<view class="form-row">
 						<text class="label">LLM 模型</text>
-						<picker class="picker" :range="modelOptions" range-key="label" :value="modelIdx" @change="onModelChange">
-							<view class="picker-text">{{ modelOptions[modelIdx].label }}</view>
-						</picker>
+						<input class="input" v-model="config.llm_model" placeholder="如 qwen / glm-4 / deepseek-v3" />
 					</view>
 
-					<view class="form-row">
-						<text class="label">角色音色</text>
-						<picker class="picker" :range="voiceOptions" range-key="label" :value="voiceIdx" @change="onVoiceChange">
-							<view class="picker-text">{{ voiceOptions[voiceIdx].label }}</view>
-						</picker>
+					<view class="form-row form-col">
+						<text class="label">角色音色 (tts_voice)</text>
+						<input class="input" v-model="config.tts_voice" placeholder="如 zh_female_wanwanxiaohe_moon_bigtts" />
 					</view>
 
 					<view class="form-row">
@@ -98,8 +94,10 @@
 						<slider :min="-10" :max="10" :step="1" :value="config.tts_pitch" @change="onPitchChange" activeColor="#28a745" />
 					</view>
 					<view class="form-row">
-						<text class="label">语速 ({{ config.tts_speech_speed }})</text>
-						<slider :min="0.5" :max="2" :step="0.1" :value="config.tts_speech_speed" @change="onSpeedChange" activeColor="#28a745" />
+						<text class="label">语速</text>
+						<picker class="picker" :range="speedOptions" :value="speedIdx" @change="onSpeedChange">
+							<view class="picker-text">{{ config.tts_speech_speed }}</view>
+						</picker>
 					</view>
 
 					<view class="form-row form-col">
@@ -168,22 +166,14 @@ export default Vue.extend({
 			applying: false,
 
 			// 选项
-			voiceOptions: [{ label: '默认音色', value: '' }],
-			voiceIdx: 0,
 			languageOptions: [
 				{ label: '中文', value: 'zh' },
 				{ label: 'English', value: 'en' },
 				{ label: '日本語', value: 'ja' },
 			],
 			languageIdx: 0,
-			modelOptions: [
-				{ label: 'GLM-4', value: 'glm-4' },
-				{ label: 'GLM-4-Plus', value: 'glm-4-plus' },
-				{ label: 'GLM-4.5', value: 'glm-4.5' },
-				{ label: 'DeepSeek-V3', value: 'deepseek-v3' },
-				{ label: 'Doubao-Pro', value: 'doubao-pro' },
-			],
-			modelIdx: 0,
+			speedOptions: ['slow', 'normal', 'fast'],
+			speedIdx: 1,
 
 			logs: [],
 		}
@@ -324,13 +314,12 @@ export default Vue.extend({
 					c.character = c.character || '';
 					c.memory = c.memory || '';
 					c.language = c.language || 'zh';
-					c.llm_model = c.llm_model || 'glm-4';
-					c.voice_id = c.voice_id || c.tts_voice || '';
+					c.llm_model = c.llm_model || '';
+					c.tts_voice = c.tts_voice || c.voice_id || '';
 					c.tts_pitch = c.tts_pitch || 0;
-					c.tts_speech_speed = c.tts_speech_speed || 1;
+					c.tts_speech_speed = c.tts_speech_speed || 'normal';
 					self.config = c;
 					self.syncPickers();
-					self.loadVoices();
 					self.addLog('success', '配置已读取');
 				} else {
 					uni.showToast({ title: r.message || '读取配置失败', icon: 'none' });
@@ -346,51 +335,21 @@ export default Vue.extend({
 			this.languageOptions.forEach(function(o, i) {
 				if (o.value === self.config.language) self.languageIdx = i;
 			});
-			this.modelIdx = 0;
-			this.modelOptions.forEach(function(o, i) {
-				if (o.value === self.config.llm_model) self.modelIdx = i;
-			});
-			this.voiceIdx = 0;
-			this.voiceOptions.forEach(function(o, i) {
-				if (o.value === (self.config.voice_id || self.config.tts_voice)) self.voiceIdx = i;
-			});
-		},
-
-		loadVoices: function() {
-			var self = this;
-			g1Api.agentVoices().then(function(r) {
-				if (r.success && r.data && r.data.items) {
-					var list = r.data.items || [];
-					var opts = list.map(function(v) {
-						return { label: v.voice_name || v.name || v.id, value: v.voice_id || v.id || '' };
-					});
-					if (opts.length === 0) opts = [{ label: '默认音色', value: '' }];
-					self.voiceOptions = opts;
-					var cur = self.config.voice_id || self.config.tts_voice || '';
-					self.voiceIdx = 0;
-					opts.forEach(function(o, i) { if (o.value === cur) self.voiceIdx = i; });
-				}
-			}).catch(function() {});
+			// 语速支持 slow/normal/fast 字符串
+			this.speedIdx = this.speedOptions.indexOf(this.config.tts_speech_speed);
+			if (this.speedIdx < 0) this.speedIdx = 1; // 默认 normal
 		},
 
 		onLanguageChange: function(e) {
 			this.languageIdx = e.detail.value;
 			this.config.language = this.languageOptions[this.languageIdx].value;
 		},
-		onModelChange: function(e) {
-			this.modelIdx = e.detail.value;
-			this.config.llm_model = this.modelOptions[this.modelIdx].value;
-		},
-		onVoiceChange: function(e) {
-			this.voiceIdx = e.detail.value;
-			this.config.voice_id = this.voiceOptions[this.voiceIdx].value;
-			this.config.tts_voice = this.voiceOptions[this.voiceIdx].value;
-		},
 		onPitchChange: function(e) {
 			this.config.tts_pitch = e.detail.value;
 		},
 		onSpeedChange: function(e) {
-			this.config.tts_speech_speed = e.detail.value;
+			this.speedIdx = e.detail.value;
+			this.config.tts_speech_speed = this.speedOptions[this.speedIdx];
 		},
 
 		// ===== 保存 / 优化 / 生效 =====
@@ -402,10 +361,9 @@ export default Vue.extend({
 				character: c.character,
 				language: c.language,
 				llm_model: c.llm_model,
-				voice_id: c.voice_id,
-				tts_voice: c.voice_id,
+				tts_voice: c.tts_voice,
 				tts_pitch: Number(c.tts_pitch),
-				tts_speech_speed: Number(c.tts_speech_speed),
+				tts_speech_speed: c.tts_speech_speed,
 				memory: c.memory,
 			};
 		},
