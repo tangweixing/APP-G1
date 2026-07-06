@@ -313,6 +313,16 @@ export function agentTemplates() {
   return request({ url: '/api/agent/templates' })
 }
 
+/** MCP 端点列表（可选项） */
+export function agentMcpTools() {
+  return request({ url: '/api/agent/mcp_tools' })
+}
+
+/** 知识库列表（可选项） */
+export function agentKnowledgeBases() {
+  return request({ url: '/api/agent/knowledge_bases' })
+}
+
 /** AI 优化人设 */
 export function agentOptimizeCharacter(character: string) {
   return request({ url: '/api/agent/optimize_character', method: 'POST', data: { character } })
@@ -360,6 +370,8 @@ export default {
   agentModels,
   agentTtsList,
   agentTemplates,
+  agentMcpTools,
+  agentKnowledgeBases,
   agentOptimizeCharacter,
   agentApply,
   getDefaultServerIp,

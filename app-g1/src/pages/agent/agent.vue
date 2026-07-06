@@ -104,6 +104,42 @@
 						</picker>
 					</view>
 
+					<!-- 高级设置 -->
+					<view class="section-divider">高级设置</view>
+
+					<view class="form-row">
+						<text class="label">记忆开关</text>
+						<switch :checked="config.long_memory_switch == 1" @change="onMemorySwitchChange" color="#28a745" />
+						<text class="switch-hint">{{ config.long_memory_switch == 1 ? '长记忆开' : '关' }}</text>
+					</view>
+
+					<view class="form-row">
+						<text class="label">语音识别速度</text>
+						<picker class="picker" :range="asrSpeedOptions" :value="asrSpeedIdx" @change="onAsrSpeedChange">
+							<view class="picker-text">{{ config.asr_speed }}</view>
+						</picker>
+					</view>
+
+					<view class="form-row form-col">
+						<text class="label">MCP 服务</text>
+						<view class="checkbox-group">
+							<view v-for="(m, i) in mcpOptions" :key="i" class="checkbox-item" @click="toggleMcp(m.value)">
+								<view class="checkbox-box" :class="{ checked: isSelected(mcpSelected, m.value) }">{{ isSelected(mcpSelected, m.value) ? '✓' : '' }}</view>
+								<text class="checkbox-label">{{ m.label }}</text>
+							</view>
+						</view>
+					</view>
+
+					<view class="form-row form-col">
+						<text class="label">知识库</text>
+						<view class="checkbox-group">
+							<view v-for="(k, i) in kbOptions" :key="i" class="checkbox-item" @click="toggleKb(k.value)">
+								<view class="checkbox-box" :class="{ checked: isSelected(kbSelected, k.value) }">{{ isSelected(kbSelected, k.value) ? '✓' : '' }}</view>
+								<text class="checkbox-label">{{ k.label }}</text>
+							</view>
+						</view>
+					</view>
+
 					<view class="form-row form-col">
 						<text class="label">人设提示词</text>
 						<textarea class="textarea" v-model="config.character" placeholder="智能体人设描述" :maxlength="-1" auto-height></textarea>
@@ -192,6 +228,13 @@ export default Vue.extend({
 			ttsVoices: {},        // {zh:[...], en:[...], ...} 全部音色，按语言分组
 			speedOptions: ['slow', 'normal', 'fast'],
 			speedIdx: 1,
+			asrSpeedOptions: ['slow', 'normal', 'fast'],
+			asrSpeedIdx: 0,
+			// MCP / 知识库
+			mcpOptions: [],      // [{label, value}]
+			mcpSelected: [],     // ['2', '9', ...]
+			kbOptions: [],       // [{label, value}]
+			kbSelected: [],      // [56216, ...]
 
 			logs: [],
 		}
@@ -271,7 +314,24 @@ export default Vue.extend({
 				}
 			}).catch(function() {});
 
-			return Promise.all([p1, p2]);
+			// MCP 端点 + 知识库列表
+			var p3 = g1Api.agentMcpTools().then(function(r) {
+				if (r.success && r.data && r.data.items) {
+					self.mcpOptions = r.data.items.map(function(m) {
+						return { label: m.name, value: String(m.endpoint_id) };
+					});
+				}
+			}).catch(function() {});
+
+			var p4 = g1Api.agentKnowledgeBases().then(function(r) {
+				if (r.success && r.data && r.data.items) {
+					self.kbOptions = r.data.items.map(function(k) {
+						return { label: k.name, value: k.id };
+					});
+				}
+			}).catch(function() {});
+
+			return Promise.all([p1, p2, p3, p4]);
 		},
 
 		// 根据当前语言刷新音色下拉选项
@@ -387,6 +447,10 @@ export default Vue.extend({
 					c.tts_voice = c.tts_voice || c.voice_id || '';
 					c.tts_pitch = c.tts_pitch || 0;
 					c.tts_speech_speed = c.tts_speech_speed || 'normal';
+					c.long_memory_switch = c.long_memory_switch || 0;
+					c.asr_speed = c.asr_speed || 'normal';
+					c.mcp_endpoints = c.mcp_endpoints || [];
+					c.knowledge_base_ids = c.knowledge_base_ids || [];
 					self.config = c;
 					self.syncPickers();
 					self.addLog('success', '配置已读取');
@@ -415,6 +479,12 @@ export default Vue.extend({
 			// 语速
 			this.speedIdx = this.speedOptions.indexOf(this.config.tts_speech_speed);
 			if (this.speedIdx < 0) this.speedIdx = 1;
+			// 语音识别速度
+			this.asrSpeedIdx = this.asrSpeedOptions.indexOf(this.config.asr_speed);
+			if (this.asrSpeedIdx < 0) this.asrSpeedIdx = 0;
+			// MCP / 知识库选中（统一转字符串比较）
+			this.mcpSelected = (this.config.mcp_endpoints || []).map(function(x){ return String(x); });
+			this.kbSelected = (this.config.knowledge_base_ids || []).map(function(x){ return x; });
 		},
 
 		onLanguageChange: function(e) {
@@ -446,6 +516,30 @@ export default Vue.extend({
 			this.speedIdx = e.detail.value;
 			this.config.tts_speech_speed = this.speedOptions[this.speedIdx];
 		},
+		onMemorySwitchChange: function(e) {
+			this.config.long_memory_switch = e.detail.value ? 1 : 0;
+		},
+		onAsrSpeedChange: function(e) {
+			this.asrSpeedIdx = e.detail.value;
+			this.config.asr_speed = this.asrSpeedOptions[this.asrSpeedIdx];
+		},
+		// MCP / 知识库多选
+		isSelected: function(arr, val) {
+			return arr.indexOf(val) >= 0;
+		},
+		toggleMcp: function(val) {
+			var idx = this.mcpSelected.indexOf(val);
+			if (idx >= 0) this.mcpSelected.splice(idx, 1);
+			else this.mcpSelected.push(val);
+			// 同步到 config（提交时用）
+			this.config.mcp_endpoints = this.mcpSelected.slice();
+		},
+		toggleKb: function(val) {
+			var idx = this.kbSelected.indexOf(val);
+			if (idx >= 0) this.kbSelected.splice(idx, 1);
+			else this.kbSelected.push(val);
+			this.config.knowledge_base_ids = this.kbSelected.slice();
+		},
 
 		// ===== 保存 / 优化 / 生效 =====
 		buildPayload: function() {
@@ -460,6 +554,10 @@ export default Vue.extend({
 				tts_pitch: Number(c.tts_pitch),
 				tts_speech_speed: c.tts_speech_speed,
 				memory: c.memory,
+				long_memory_switch: Number(c.long_memory_switch) || 0,
+				asr_speed: c.asr_speed,
+				mcp_endpoints: c.mcp_endpoints || [],
+				knowledge_base_ids: c.knowledge_base_ids || [],
 			};
 		},
 
@@ -581,6 +679,14 @@ export default Vue.extend({
 .picker{flex:1;background:#1a1a2e;border:1px solid #444;border-radius:8px;height:40px;display:flex;align-items:center;padding:0 12px}
 .picker-text{color:#eee;font-size:14px}
 .pitch-slider{flex:1;margin:0 8px}
+
+.section-divider{font-size:13px;color:#9af;font-weight:600;margin:18px 0 10px;padding:6px 0;border-top:1px solid #333;border-bottom:1px solid #333}
+.switch-hint{margin-left:10px;font-size:12px;color:#888}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;width:100%}
+.checkbox-item{display:flex;align-items:center;background:#1a1a2e;border:1px solid #444;border-radius:6px;padding:8px 12px;margin-right:6px;margin-bottom:6px}
+.checkbox-box{width:18px;height:18px;border:1px solid #666;border-radius:4px;margin-right:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#fff;background:#333}
+.checkbox-box.checked{background:#28a745;border-color:#28a745}
+.checkbox-label{color:#eee;font-size:13px}
 
 .btn-row{display:flex;justify-content:space-between;margin:8px 0}
 .btn-row button{flex:1;margin:0 4px}

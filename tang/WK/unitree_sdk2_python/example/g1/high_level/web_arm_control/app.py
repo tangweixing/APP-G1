@@ -4420,6 +4420,20 @@ def agent_templates():
     return _agent_result(ok, data, status)
 
 
+@app.route('/api/agent/mcp_tools', methods=['GET'])
+def agent_mcp_tools():
+    """MCP 端点列表（可选项）。"""
+    ok, data, status = xiaozhi_proxy.list_mcp_tools()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/knowledge_bases', methods=['GET'])
+def agent_knowledge_bases():
+    """知识库列表（可选项）。"""
+    ok, data, status = xiaozhi_proxy.list_knowledge_bases()
+    return _agent_result(ok, data, status)
+
+
 @app.route('/api/agent/optimize_character', methods=['POST'])
 def agent_optimize_character():
     """AI 优化人设。body: {character}。"""

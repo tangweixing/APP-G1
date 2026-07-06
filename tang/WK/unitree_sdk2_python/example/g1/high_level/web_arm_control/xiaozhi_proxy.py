@@ -286,6 +286,45 @@ def list_templates():
     return True, {"templates": tpls}, status
 
 
+def list_mcp_tools(agent_id=None):
+    """GET /api/agents/common-mcp-tool/list?agentId=X，MCP 端点列表。
+
+    返回 [{endpoint_id, name}, ...]。agent_id 不传则用当前。
+    """
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    aid = agent_id or get_agent_id()
+    ok, data, status = _xz_request("GET", "/agents/common-mcp-tool/list",
+                                   token=token, params={"agentId": aid})
+    if not ok:
+        return False, data, status
+    # data 可能是 list 或 {data:[...]}
+    items = data.get("data") if isinstance(data, dict) else data
+    if not isinstance(items, list):
+        items = []
+    return True, {"items": items}, status
+
+
+def list_knowledge_bases():
+    """GET /api/knowledge-bases/enum，知识库列表。
+
+    返回 {data:{list:[{id, name, knowledge_base_type}]}}，
+    扁平化返回 list。
+    """
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    ok, data, status = _xz_request("GET", "/knowledge-bases/enum", token=token)
+    if not ok:
+        return False, data, status
+    d = data.get("data") if isinstance(data, dict) else data
+    items = d.get("list") if isinstance(d, dict) else d
+    if not isinstance(items, list):
+        items = []
+    return True, {"items": items}, status
+
+
 def optimize_character(character_text):
     """POST /api/agents/optimize-character，AI 优化人设。"""
     token = _get_token()
