@@ -95,7 +95,7 @@
 
 					<view class="form-row">
 						<text class="label">音调 ({{ config.tts_pitch }})</text>
-						<slider :min="-10" :max="10" :step="1" :value="config.tts_pitch" @changing="onPitchChanging" @change="onPitchChange" activeColor="#28a745" block-size="20" />
+						<slider class="pitch-slider" :min="-10" :max="10" :step="1" :value="config.tts_pitch" @change="onPitchChange" activeColor="#28a745" block-size="24" show-value />
 					</view>
 					<view class="form-row">
 						<text class="label">语速</text>
@@ -104,9 +104,9 @@
 						</picker>
 					</view>
 
-					<view class="form-row">
+					<view class="form-row form-col">
 						<text class="label">人设提示词</text>
-						<input class="input" v-model="config.character" placeholder="智能体人设描述" />
+						<textarea class="textarea" v-model="config.character" placeholder="智能体人设描述" :maxlength="-1" auto-height></textarea>
 					</view>
 
 					<view class="form-row form-col">
@@ -577,6 +577,7 @@ export default Vue.extend({
 
 .picker{flex:1;background:#1a1a2e;border:1px solid #444;border-radius:8px;height:40px;display:flex;align-items:center;padding:0 12px}
 .picker-text{color:#eee;font-size:14px}
+.pitch-slider{flex:1;margin:0 8px}
 
 .btn-row{display:flex;justify-content:space-between;margin:8px 0}
 .btn-row button{flex:1;margin:0 4px}
