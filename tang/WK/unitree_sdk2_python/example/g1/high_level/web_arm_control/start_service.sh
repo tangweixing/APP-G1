@@ -10,6 +10,11 @@ export PYTHONPATH="/home/unitree/tang/WK/unitree_sdk2_python:${PYTHONPATH:-}"
 export LD_LIBRARY_PATH="/home/unitree/tang/cyclonedds/install/lib:${LD_LIBRARY_PATH:-}"
 export PYTHONUNBUFFERED=1
 
+# 把用户级 pip 安装目录加入 PATH（systemd 默认 PATH 不含 ~/.local/bin）
+# websockify / rosbridge 等工具常装在这里，否则会报:
+#   [Errno 2] No such file or directory: 'websockify'
+export PATH="/home/unitree/.local/bin:${PATH:-}"
+
 # Source ROS 环境（导航子进程需要）
 source /opt/ros/noetic/setup.bash
 source ~/tang/WK/G1Nav2D/devel/setup.bash

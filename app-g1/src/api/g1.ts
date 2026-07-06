@@ -256,6 +256,58 @@ export function gestureSendKey(key: string) {
   })
 }
 
+/* ========== 小智智能体配置代理（转发 xiaozhi.me）========== */
+
+/** 保存用户手动粘贴的 token */
+export function agentSaveToken(token: string) {
+  return request({ url: '/api/agent/save_token', method: 'POST', data: { token } })
+}
+
+/** 检查本地 token 是否有效 */
+export function agentAuthStatus() {
+  return request({ url: '/api/agent/auth_status' })
+}
+
+/** 退出登录 */
+export function agentLogout() {
+  return request({ url: '/api/agent/logout', method: 'POST' })
+}
+
+/** 切换当前智能体 */
+export function agentSelect(agentId: string | number) {
+  return request({ url: '/api/agent/select', method: 'POST', data: { agent_id: agentId } })
+}
+
+/** 列智能体 */
+export function agentList() {
+  return request({ url: '/api/agent/list' })
+}
+
+/** 读当前智能体配置 */
+export function agentGetConfig() {
+  return request({ url: '/api/agent/config' })
+}
+
+/** 保存智能体配置 */
+export function agentSaveConfig(config: Record<string, any>) {
+  return request({ url: '/api/agent/config', method: 'POST', data: config })
+}
+
+/** 音色列表 */
+export function agentVoices() {
+  return request({ url: '/api/agent/voices' })
+}
+
+/** AI 优化人设 */
+export function agentOptimizeCharacter(character: string) {
+  return request({ url: '/api/agent/optimize_character', method: 'POST', data: { character } })
+}
+
+/** 保存后重启小野 AI 让配置生效 */
+export function agentApply() {
+  return request({ url: '/api/agent/apply', method: 'POST' })
+}
+
 export default {
   initApi,
   getStatus,
@@ -281,6 +333,17 @@ export default {
   stopGestureControl,
   getGestureControlStatus,
   gestureSendKey,
+  // 小智智能体配置
+  agentSaveToken,
+  agentAuthStatus,
+  agentLogout,
+  agentSelect,
+  agentList,
+  agentGetConfig,
+  agentSaveConfig,
+  agentVoices,
+  agentOptimizeCharacter,
+  agentApply,
   getDefaultServerIp,
   getBaseUrl,
   setServerAddress,

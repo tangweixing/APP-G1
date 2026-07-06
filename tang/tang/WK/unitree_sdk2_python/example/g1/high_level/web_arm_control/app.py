@@ -4315,6 +4315,114 @@ def execute_action(action_id):
         print(f"动作执行失败: {e}")
         return False
 
+
+
+# ==================== 小智智能体配置代理 ====================
+# APP 不直接调 xiaozhi.me，由这里转发。token 存本地 xiaozhi_auth.json。
+import xiaozhi_proxy
+
+def _agent_result(ok, data, status):
+    """统一包装 xiaozhi_proxy 的返回为 Flask 响应。"""
+    code = status if status and status >= 200 else 200
+    if ok:
+        return jsonify({"success": True, "data": data}), code
+    # data 是错误消息或错误体
+    if isinstance(data, dict):
+        return jsonify({"success": False, **data}), code
+    return jsonify({"success": False, "message": data}), code
+
+
+@app.route('/api/agent/save_token', methods=['POST'])
+def agent_save_token():
+    """用户手动粘贴 token 后保存。body: {token}。"""
+    body = request.get_json() or {}
+    token = body.get("token")
+    if not token:
+        return jsonify({"success": False, "message": "缺少 token"}), 400
+    ok, msg = xiaozhi_proxy.save_token(token)
+    return jsonify({"success": ok, "message": msg})
+
+
+@app.route('/api/agent/auth_status', methods=['GET'])
+def agent_auth_status():
+    """检查本地 token 是否有效。"""
+    ok, data, status = xiaozhi_proxy.auth_status()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/logout', methods=['POST'])
+def agent_logout():
+    """退出登录，清本地 token。"""
+    ok, data, status = xiaozhi_proxy.logout()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/select', methods=['POST'])
+def agent_select():
+    """切换当前 agent_id。body: {agent_id}。"""
+    body = request.get_json() or {}
+    aid = body.get("agent_id")
+    if not aid:
+        return jsonify({"success": False, "message": "缺少 agent_id"}), 400
+    xiaozhi_proxy.set_agent_id(str(aid))
+    return jsonify({"success": True, "agent_id": xiaozhi_proxy.get_agent_id()}), 200
+
+
+@app.route('/api/agent/list', methods=['GET'])
+def agent_list():
+    """列智能体。"""
+    ok, data, status = xiaozhi_proxy.list_agents()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/config', methods=['GET'])
+def agent_get_config():
+    """读当前智能体配置。"""
+    ok, data, status = xiaozhi_proxy.get_config()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/config', methods=['POST'])
+def agent_save_config():
+    """保存智能体配置。body: 配置 dict。"""
+    body = request.get_json() or {}
+    if not isinstance(body, dict) or not body:
+        return jsonify({"success": False, "message": "请求体为空"}), 400
+    ok, data, status = xiaozhi_proxy.save_config(body)
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/voices', methods=['GET'])
+def agent_voices():
+    """音色列表。"""
+    ok, data, status = xiaozhi_proxy.list_voices()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/optimize_character', methods=['POST'])
+def agent_optimize_character():
+    """AI 优化人设。body: {character}。"""
+    body = request.get_json() or {}
+    char = body.get("character")
+    if not char:
+        return jsonify({"success": False, "message": "缺少 character"}), 400
+    ok, data, status = xiaozhi_proxy.optimize_character(char)
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/apply', methods=['POST'])
+def agent_apply():
+    """保存配置后重启小野 AI 让新配置生效。"""
+    try:
+        if xiaoye_running:
+            stop_xiaoye()
+            time.sleep(3)
+        start_xiaoye()
+        return jsonify({"success": True, "message": "小野 AI 已重启，新配置将在下次会话生效"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"重启失败: {e}"}), 500
+
+
 @socketio.on('connect')
 def handle_connect():
     """处理客户端连接"""

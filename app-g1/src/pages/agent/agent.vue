@@ -1,0 +1,555 @@
+<template>
+	<view class="agent-page">
+		<!-- 顶部栏 -->
+		<view class="top-bar">
+			<button class="btn-back" @click="goBack">&#x25C0; 返回</button>
+			<view class="status-mini" :class="{ online: loggedIn }">
+				{{ loggedIn ? '已登录' : '未登录' }}
+			</view>
+		</view>
+
+		<!-- 未登录：token 粘贴卡片 -->
+		<view class="card" v-if="!loggedIn">
+			<view class="card-header">
+				<text class="card-title">&#x1F511; 登录小智控制台</text>
+			</view>
+			<view class="card-body">
+				<text class="desc">粘贴小智控制台的 token 即可登录，配置修改后重启小野 AI 生效。token 只存在机器人本地，不会出现在 APP 里。</text>
+
+				<view class="form-row form-col">
+					<text class="label">控制台 Token</text>
+					<textarea class="textarea" v-model="tokenInput" placeholder="粘贴 token（以 ghp_ 或 eyJ 开头）" :maxlength="-1" auto-height></textarea>
+				</view>
+
+				<button class="btn-start" @click="doSaveToken" :disabled="loggingIn">
+					{{ loggingIn ? '验证中...' : '&#x1F511; 保存并验证' }}
+				</button>
+
+				<view class="tips-box">
+					<text class="tips-title">&#x2139; 如何获取 token</text>
+					<view class="tips-list">
+						<text class="tip-item">1. 浏览器打开 https://xiaozhi.me/console/agents</text>
+						<text class="tip-item">2. 登录控制台后按 F12 打开开发者工具</text>
+						<text class="tip-item">3. 切到 Application → Local Storage → xiaozhi.me</text>
+						<text class="tip-item">4. 复制 "token" 那一行的值粘到这里</text>
+						<text class="tip-item">5. token 几周到几个月过期，过期后重新粘贴</text>
+					</view>
+				</view>
+			</view>
+		</view>
+
+		<!-- 已登录：配置卡片 -->
+		<view v-else>
+			<!-- 智能体选择 -->
+			<view class="card">
+				<view class="card-header">
+					<text class="card-title">&#x1F916; 智能体</text>
+					<button class="btn-clear" @click="doLogout">退出</button>
+				</view>
+				<view class="card-body">
+					<view class="form-row">
+						<text class="label">当前智能体</text>
+						<picker class="picker" :range="agentNames" :value="agentIndex" @change="onAgentChange">
+							<view class="picker-text">{{ agentNames[agentIndex] || '未选择' }}</view>
+						</picker>
+					</view>
+				</view>
+			</view>
+
+			<!-- 配置表单 -->
+			<view class="card" v-if="config">
+				<view class="card-header">
+					<text class="card-title">&#x2699; 智能体配置</text>
+					<text class="agent-id-tag">ID: {{ currentAgentId }}</text>
+				</view>
+				<view class="card-body">
+					<view class="form-row">
+						<text class="label">智能体名称</text>
+						<input class="input" v-model="config.agent_name" placeholder="名称" />
+					</view>
+					<view class="form-row">
+						<text class="label">助手称呼</text>
+						<input class="input" v-model="config.assistant_name" placeholder="助手称呼" />
+					</view>
+
+					<view class="form-row">
+						<text class="label">对话语言</text>
+						<picker class="picker" :range="languageOptions" range-key="label" :value="languageIdx" @change="onLanguageChange">
+							<view class="picker-text">{{ languageOptions[languageIdx].label }}</view>
+						</picker>
+					</view>
+
+					<view class="form-row">
+						<text class="label">LLM 模型</text>
+						<picker class="picker" :range="modelOptions" range-key="label" :value="modelIdx" @change="onModelChange">
+							<view class="picker-text">{{ modelOptions[modelIdx].label }}</view>
+						</picker>
+					</view>
+
+					<view class="form-row">
+						<text class="label">角色音色</text>
+						<picker class="picker" :range="voiceOptions" range-key="label" :value="voiceIdx" @change="onVoiceChange">
+							<view class="picker-text">{{ voiceOptions[voiceIdx].label }}</view>
+						</picker>
+					</view>
+
+					<view class="form-row">
+						<text class="label">音调 ({{ config.tts_pitch }})</text>
+						<slider :min="-10" :max="10" :step="1" :value="config.tts_pitch" @change="onPitchChange" activeColor="#28a745" />
+					</view>
+					<view class="form-row">
+						<text class="label">语速 ({{ config.tts_speech_speed }})</text>
+						<slider :min="0.5" :max="2" :step="0.1" :value="config.tts_speech_speed" @change="onSpeedChange" activeColor="#28a745" />
+					</view>
+
+					<view class="form-row form-col">
+						<text class="label">人设 / 角色提示词</text>
+						<textarea class="textarea" v-model="config.character" placeholder="智能体人设描述" :maxlength="-1" auto-height></textarea>
+					</view>
+
+					<view class="form-row form-col">
+						<text class="label">记忆</text>
+						<textarea class="textarea" v-model="config.memory" placeholder="记忆内容" :maxlength="-1" auto-height></textarea>
+					</view>
+
+					<view class="btn-row">
+						<button class="btn-optimize" @click="doOptimizeCharacter" :disabled="optimizing">
+							{{ optimizing ? 'AI 优化中...' : '&#x2728; AI 优化人设' }}
+						</button>
+						<button class="btn-start" @click="doSave" :disabled="saving">
+							{{ saving ? '保存中...' : '&#x1F4BE; 保存配置' }}
+						</button>
+					</view>
+					<button class="btn-apply" @click="doApply" :disabled="applying">
+						{{ applying ? '重启中...' : '&#x1F501; 保存并重启小野 AI 生效' }}
+					</button>
+				</view>
+			</view>
+
+			<!-- 日志 -->
+			<view class="card" v-if="logs.length > 0">
+				<view class="card-header">
+					<text class="card-title">&#x1F4DD; 操作日志</text>
+					<button class="btn-clear" @click="logs = []">清空</button>
+				</view>
+				<view class="log-area">
+					<scroll-view scroll-y class="log-scroll">
+						<view v-for="(log, idx) in logs" :key="idx" class="log-item" :class="'log-' + log.type">
+							<text class="log-time">{{ log.time }}</text>
+							<text class="log-msg">{{ log.msg }}</text>
+						</view>
+					</scroll-view>
+				</view>
+			</view>
+		</view>
+	</view>
+</template>
+
+<script>
+import Vue from 'vue';
+import * as g1Api from '../../api/g1';
+
+export default Vue.extend({
+	data: function() {
+		return {
+			// 登录态
+			loggedIn: false,
+			loggingIn: false,
+			tokenInput: '',
+
+			// 智能体列表
+			agents: [],
+			agentIndex: 0,
+
+			// 配置
+			config: null,
+			saving: false,
+			optimizing: false,
+			applying: false,
+
+			// 选项
+			voiceOptions: [{ label: '默认音色', value: '' }],
+			voiceIdx: 0,
+			languageOptions: [
+				{ label: '中文', value: 'zh' },
+				{ label: 'English', value: 'en' },
+				{ label: '日本語', value: 'ja' },
+			],
+			languageIdx: 0,
+			modelOptions: [
+				{ label: 'GLM-4', value: 'glm-4' },
+				{ label: 'GLM-4-Plus', value: 'glm-4-plus' },
+				{ label: 'GLM-4.5', value: 'glm-4.5' },
+				{ label: 'DeepSeek-V3', value: 'deepseek-v3' },
+				{ label: 'Doubao-Pro', value: 'doubao-pro' },
+			],
+			modelIdx: 0,
+
+			logs: [],
+		}
+	},
+
+	computed: {
+		agentNames: function() {
+			return this.agents.map(function(a) {
+				return a.agent_name || a.name || ('ID ' + (a.id || '?'));
+			});
+		},
+		currentAgentId: function() {
+			if (this.agents.length === 0) return '';
+			var a = this.agents[this.agentIndex];
+			return a.id || a.agent_id || '';
+		},
+	},
+
+	onLoad: function() {
+		this.init();
+	},
+
+	onShow: function() {
+		// 已登录但还没拉配置时补拉
+		if (this.loggedIn && !this.config) this.loadConfig();
+	},
+
+	methods: {
+		goBack: function() {
+			var pages = getCurrentPages();
+			if (pages.length > 1) { uni.navigateBack(); }
+			else { uni.reLaunch({ url: '/pages/index/index' }); }
+		},
+
+		init: function() {
+			var self = this;
+			g1Api.agentAuthStatus().then(function(r) {
+				var d = r.data || {};
+				if (d.logged_in) {
+					self.loggedIn = true;
+					self.addLog('success', '已登录控制台');
+					self.loadAgents();
+				} else {
+					self.loggedIn = false;
+				}
+			}).catch(function() {
+				self.loggedIn = false;
+			});
+		},
+
+		// ===== token 登录 =====
+		doSaveToken: function() {
+			var self = this;
+			var token = (this.tokenInput || '').trim();
+			if (!token) {
+				uni.showToast({ title: '请粘贴 token', icon: 'none' });
+				return;
+			}
+			this.loggingIn = true;
+			this.addLog('info', '正在验证 token...');
+			g1Api.agentSaveToken(token).then(function(r) {
+				// token 已存后端，再调 auth_status 验证有效性
+				return g1Api.agentAuthStatus();
+			}).then(function(r) {
+				self.loggingIn = false;
+				var d = r.data || {};
+				if (d.logged_in) {
+					self.loggedIn = true;
+					self.tokenInput = '';
+					self.addLog('success', 'token 有效，登录成功');
+					uni.showToast({ title: '登录成功', icon: 'success' });
+					self.loadAgents();
+				} else {
+					self.addLog('error', d.reason || 'token 无效');
+					uni.showToast({ title: d.reason || 'token 无效', icon: 'none' });
+				}
+			}).catch(function(err) {
+				self.loggingIn = false;
+				self.addLog('error', '网络错误：' + (err && err.message || err));
+				uni.showToast({ title: '登录失败', icon: 'none' });
+			});
+		},
+
+		doLogout: function() {
+			var self = this;
+			g1Api.agentLogout().then(function() {
+				self.loggedIn = false;
+				self.config = null;
+				self.agents = [];
+				self.addLog('info', '已退出登录');
+			}).catch(function() {});
+		},
+
+		// ===== 智能体列表 =====
+		loadAgents: function() {
+			var self = this;
+			g1Api.agentList().then(function(r) {
+				if (r.success && r.data && r.data.items) {
+					var items = r.data.items || [];
+					self.agents = items;
+					var curId = null;
+					if (r.data.agent_id) curId = String(r.data.agent_id);
+					var idx = 0;
+					for (var i = 0; i < items.length; i++) {
+						if (String(items[i].id || '') === curId) { idx = i; break; }
+					}
+					self.agentIndex = idx;
+					self.loadConfig();
+				} else {
+					uni.showToast({ title: r.message || '拉取智能体失败', icon: 'none' });
+				}
+			}).catch(function() {
+				uni.showToast({ title: '网络错误', icon: 'none' });
+			});
+		},
+
+		onAgentChange: function(e) {
+			var self = this;
+			this.agentIndex = e.detail.value;
+			var newId = this.currentAgentId;
+			if (!newId) return;
+			g1Api.agentSelect(newId).then(function() {
+				self.config = null;
+				self.loadConfig();
+			}).catch(function() {});
+		},
+
+		// ===== 配置 =====
+		loadConfig: function() {
+			var self = this;
+			if (!this.currentAgentId) return;
+			this.addLog('info', '读取配置...');
+			g1Api.agentGetConfig().then(function(r) {
+				if (r.success && r.data) {
+					var c = r.data;
+					c.agent_name = c.agent_name || c.name || '';
+					c.assistant_name = c.assistant_name || '';
+					c.character = c.character || '';
+					c.memory = c.memory || '';
+					c.language = c.language || 'zh';
+					c.llm_model = c.llm_model || 'glm-4';
+					c.voice_id = c.voice_id || c.tts_voice || '';
+					c.tts_pitch = c.tts_pitch || 0;
+					c.tts_speech_speed = c.tts_speech_speed || 1;
+					self.config = c;
+					self.syncPickers();
+					self.loadVoices();
+					self.addLog('success', '配置已读取');
+				} else {
+					uni.showToast({ title: r.message || '读取配置失败', icon: 'none' });
+				}
+			}).catch(function() {
+				uni.showToast({ title: '网络错误', icon: 'none' });
+			});
+		},
+
+		syncPickers: function() {
+			var self = this;
+			this.languageIdx = 0;
+			this.languageOptions.forEach(function(o, i) {
+				if (o.value === self.config.language) self.languageIdx = i;
+			});
+			this.modelIdx = 0;
+			this.modelOptions.forEach(function(o, i) {
+				if (o.value === self.config.llm_model) self.modelIdx = i;
+			});
+			this.voiceIdx = 0;
+			this.voiceOptions.forEach(function(o, i) {
+				if (o.value === (self.config.voice_id || self.config.tts_voice)) self.voiceIdx = i;
+			});
+		},
+
+		loadVoices: function() {
+			var self = this;
+			g1Api.agentVoices().then(function(r) {
+				if (r.success && r.data && r.data.items) {
+					var list = r.data.items || [];
+					var opts = list.map(function(v) {
+						return { label: v.voice_name || v.name || v.id, value: v.voice_id || v.id || '' };
+					});
+					if (opts.length === 0) opts = [{ label: '默认音色', value: '' }];
+					self.voiceOptions = opts;
+					var cur = self.config.voice_id || self.config.tts_voice || '';
+					self.voiceIdx = 0;
+					opts.forEach(function(o, i) { if (o.value === cur) self.voiceIdx = i; });
+				}
+			}).catch(function() {});
+		},
+
+		onLanguageChange: function(e) {
+			this.languageIdx = e.detail.value;
+			this.config.language = this.languageOptions[this.languageIdx].value;
+		},
+		onModelChange: function(e) {
+			this.modelIdx = e.detail.value;
+			this.config.llm_model = this.modelOptions[this.modelIdx].value;
+		},
+		onVoiceChange: function(e) {
+			this.voiceIdx = e.detail.value;
+			this.config.voice_id = this.voiceOptions[this.voiceIdx].value;
+			this.config.tts_voice = this.voiceOptions[this.voiceIdx].value;
+		},
+		onPitchChange: function(e) {
+			this.config.tts_pitch = e.detail.value;
+		},
+		onSpeedChange: function(e) {
+			this.config.tts_speech_speed = e.detail.value;
+		},
+
+		// ===== 保存 / 优化 / 生效 =====
+		buildPayload: function() {
+			var c = this.config;
+			return {
+				agent_name: c.agent_name,
+				assistant_name: c.assistant_name,
+				character: c.character,
+				language: c.language,
+				llm_model: c.llm_model,
+				voice_id: c.voice_id,
+				tts_voice: c.voice_id,
+				tts_pitch: Number(c.tts_pitch),
+				tts_speech_speed: Number(c.tts_speech_speed),
+				memory: c.memory,
+			};
+		},
+
+		doSave: function() {
+			var self = this;
+			this.saving = true;
+			this.addLog('info', '保存配置...');
+			g1Api.agentSaveConfig(this.buildPayload()).then(function(r) {
+				self.saving = false;
+				if (r.success) {
+					self.addLog('success', '配置已保存到云端');
+					uni.showToast({ title: '已保存', icon: 'success' });
+				} else {
+					self.addLog('error', r.message || '保存失败');
+					uni.showToast({ title: r.message || '保存失败', icon: 'none' });
+				}
+			}).catch(function(err) {
+				self.saving = false;
+				self.addLog('error', '网络错误：' + (err && err.message || err));
+				uni.showToast({ title: '保存失败', icon: 'none' });
+			});
+		},
+
+		doApply: function() {
+			var self = this;
+			this.saving = true;
+			this.addLog('info', '保存并重启小野 AI...');
+			g1Api.agentSaveConfig(this.buildPayload()).then(function(r) {
+				self.saving = false;
+				if (!r.success) {
+					self.addLog('error', r.message || '保存失败');
+					uni.showToast({ title: r.message || '保存失败', icon: 'none' });
+					return;
+				}
+				self.applying = true;
+				return g1Api.agentApply();
+			}).then(function(r) {
+				self.applying = false;
+				if (r && r.success) {
+					self.addLog('success', '小野 AI 已重启，新配置生效');
+					uni.showToast({ title: '已重启生效', icon: 'success' });
+				} else if (r) {
+					self.addLog('warn', r.message || '重启失败');
+					uni.showToast({ title: r.message || '重启失败', icon: 'none' });
+				}
+			}).catch(function(err) {
+				self.saving = false;
+				self.applying = false;
+				self.addLog('error', '网络错误：' + (err && err.message || err));
+				uni.showToast({ title: '操作失败', icon: 'none' });
+			});
+		},
+
+		doOptimizeCharacter: function() {
+			var self = this;
+			if (!this.config.character) {
+				uni.showToast({ title: '请先填写人设', icon: 'none' });
+				return;
+			}
+			this.optimizing = true;
+			this.addLog('info', 'AI 优化人设中...');
+			g1Api.agentOptimizeCharacter(this.config.character).then(function(r) {
+				self.optimizing = false;
+				if (r.success && r.data) {
+					var newChar = r.data.character || r.data.optimized_character || r.data.text || '';
+					if (newChar) {
+						self.config.character = newChar;
+						self.addLog('success', '人设已优化');
+						uni.showToast({ title: '已优化', icon: 'success' });
+					} else {
+						self.addLog('warn', '优化响应无文本');
+						uni.showToast({ title: '未返回优化结果', icon: 'none' });
+					}
+				} else {
+					self.addLog('error', r.message || '优化失败');
+					uni.showToast({ title: r.message || '优化失败', icon: 'none' });
+				}
+			}).catch(function(err) {
+				self.optimizing = false;
+				self.addLog('error', '网络错误：' + (err && err.message || err));
+				uni.showToast({ title: '优化失败', icon: 'none' });
+			});
+		},
+
+		addLog: function(type, msg) {
+			var now = new Date();
+			var h = String(now.getHours()).padStart(2, '0');
+			var m = String(now.getMinutes()).padStart(2, '0');
+			var s = String(now.getSeconds()).padStart(2, '0');
+			this.logs.push({ type: type, msg: msg, time: h + ':' + m + ':' + s });
+			if (this.logs.length > 50) this.logs.shift();
+		},
+	}
+});
+</script>
+
+<style scoped>
+.agent-page{min-height:100vh;background:#1a1a2e;color:#eee;display:flex;flex-direction:column;padding:12px;box-sizing:border-box}
+
+.top-bar{display:flex;align-items:center;justify-content:space-between;height:44px;margin-bottom:16px;padding:0 8px}
+.btn-back{position:fixed;top:20px;left:20px;z-index:10;background:#333;color:#fff;border:none;border-radius:8px;font-size:14px;padding:6px 14px;line-height:1}
+.status-mini{padding:3px 10px;border-radius:10px;font-size:11px;background:#555;color:#aaa}
+.status-mini.online{background:#1a5f2a;color:#5fda5f}
+
+.card{background:#222;border-radius:12px;margin-bottom:16px;overflow:hidden;border:1px solid #333}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #333}
+.card-title{font-size:15px;font-weight:600;color:#fff}
+.agent-id-tag{font-size:11px;color:#888;background:#2a2a3e;padding:2px 8px;border-radius:6px}
+.card-body{padding:16px}
+
+.desc{font-size:13px;color:#aaa;line-height:1.6;margin-bottom:16px}
+
+.form-row{display:flex;align-items:center;margin-bottom:14px;min-height:40px}
+.form-row.form-col{flex-direction:column;align-items:stretch}
+.label{width:90px;flex-shrink:0;font-size:13px;color:#9af;padding-right:8px}
+.input{flex:1;background:#1a1a2e;border:1px solid #444;border-radius:8px;padding:10px 12px;color:#eee;font-size:14px;height:40px;box-sizing:border-box}
+.textarea{background:#1a1a2e;border:1px solid #444;border-radius:8px;padding:10px 12px;color:#eee;font-size:13px;min-height:80px;width:100%;box-sizing:border-box;margin-top:6px}
+
+.picker{flex:1;background:#1a1a2e;border:1px solid #444;border-radius:8px;height:40px;display:flex;align-items:center;padding:0 12px}
+.picker-text{color:#eee;font-size:14px}
+
+.btn-row{display:flex;justify-content:space-between;margin:8px 0}
+.btn-row button{flex:1;margin:0 4px}
+.btn-start{background:linear-gradient(135deg,#1a7f37,#28a745);color:#fff;border:none;border-radius:10px;font-size:15px;padding:12px 0;font-weight:600}
+.btn-start[disabled]{opacity:.5}
+.btn-optimize{background:linear-gradient(135deg,#1565c0,#1976d2);color:#fff;border:none;border-radius:10px;font-size:15px;padding:12px 0;font-weight:600}
+.btn-optimize[disabled]{opacity:.5}
+.btn-apply{width:100%;background:linear-gradient(135deg,#b71c1c,#d32f2f);color:#fff;border:none;border-radius:10px;font-size:15px;padding:12px 0;font-weight:600;margin-top:8px}
+.btn-apply[disabled]{opacity:.5}
+
+.btn-clear{background:none;border:1px solid #555;color:#999;font-size:11px;padding:2px 10px;border-radius:6px}
+
+.tips-box{background:#1a1a2e;border-radius:8px;padding:12px 14px;border:1px solid #333;margin-top:16px}
+.tips-title{font-size:13px;font-weight:600;color:#88c;display:block;margin-bottom:8px}
+.tip-item{display:block;font-size:12px;color:#99a;line-height:1.8}
+
+.log-area{height:200px}
+.log-scroll{height:100%}
+.log-item{display:flex;padding:6px 12px;border-bottom:1px solid #2a2a3e;font-size:12px}
+.log-time{color:#666;width:70px;flex-shrink:0}
+.log-msg{color:#ccc;word-break:break-all}
+.log-success .log-msg{color:#5fda5f}
+.log-error .log-msg{color:#ff6b6b}
+.log-warn .log-msg{color:#ffd93d}
+.log-info .log-msg{color:#74c0fc}
+</style>

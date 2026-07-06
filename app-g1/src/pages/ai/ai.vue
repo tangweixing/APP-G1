@@ -6,6 +6,7 @@
 			<view class="status-mini" :class="{ online: xiaoyeRunning }">
 				{{ xiaoyeRunning ? 'AI运行中' : 'AI待机' }}
 			</view>
+			<button class="btn-config" @click="goAgentConfig">&#x2699; AI配置</button>
 		</view>
 
 		<!-- 小野AI控制 -->
@@ -92,6 +93,10 @@
 				else { uni.reLaunch({ url: '/pages/index/index' }); }
 			},
 
+			goAgentConfig: function() {
+				uni.navigateTo({ url: '/pages/agent/agent' });
+			},
+
 			checkStatus: function() {
 				var self = this;
 				g1Api.getStatus().then(function(r) {
@@ -157,6 +162,7 @@
 /* 顶栏 */
 .top-bar{display:flex;align-items:center;justify-content:space-between;height:44px;margin-bottom:16px;padding:0 8px}
 .btn-back{position:fixed;top:20px;left:20px;z-index:10;background:#333;color:#fff;border:none;border-radius:8px;font-size:14px;padding:6px 14px;line-height:1}
+.btn-config{position:fixed;top:20px;right:20px;z-index:10;background:#2a4a7a;color:#fff;border:none;border-radius:8px;font-size:14px;padding:6px 14px;line-height:1}
 .page-title{font-size:18px;font-weight:700;color:#fff}
 .status-mini{padding:3px 10px;border-radius:10px;font-size:11px;background:#555;color:#aaa}
 .status-mini.online{background:#1a5f2a;color:#5fda5f}

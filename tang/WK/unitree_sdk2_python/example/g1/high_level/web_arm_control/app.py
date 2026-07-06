@@ -2146,25 +2146,67 @@ def stop_xiaoye():
 #  人脸识别模块 (g1_face_greet.py 子进程)
 # ============================================================
 
-def _check_and_kill_face_greet_processes():
-    """清理可能残留的人脸识别进程"""
-    global face_greet_process
-    subprocess.run(['pkill', '-9', '-f', 'g1_face_greet.py'], capture_output=True)
-    if face_greet_process:
+def _terminate_process_group(proc, timeout=10):
+    """优雅停止子进程：先 SIGTERM 整个进程组，轮询等待退出，超时才 SIGKILL。
+
+    避免 SIGKILL 强杀正在流式传输 RealSense 的子进程，导致 uvcvideo 不释放设备
+    (后续 pipeline.start() 报 errno=16 Device or resource busy)。
+    proc 用 preexec_fn=os.setsid 启动，故有独立进程组，可整组发信号。
+    """
+    import signal as _signal
+    if proc is None or proc.poll() is not None:
+        return
+    try:
+        pgid = os.getpgid(proc.pid)
+    except Exception:
+        pgid = proc.pid
+    # 1. SIGTERM 优雅停止 (子进程的 SIGTERM 处理器会置 running=False → pipeline.stop())
+    try:
+        os.killpg(pgid, _signal.SIGTERM)
+    except Exception:
         try:
-            os.killpg(os.getpgid(face_greet_process.pid), subprocess.signal.SIGKILL)
+            proc.terminate()
         except Exception:
-            try:
-                os.kill(face_greet_process.pid, subprocess.signal.SIGKILL)
-            except Exception:
-                pass
+            pass
+    # 2. 轮询等待退出
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            return
+        time.sleep(0.2)
+    # 3. 仍存活 → SIGKILL 兜底
+    print(f"[kill] 进程 {proc.pid} {timeout}s 未优雅退出，SIGKILL 兜底")
+    try:
+        os.killpg(pgid, _signal.SIGKILL)
+    except Exception:
+        try:
+            proc.kill()
+        except Exception:
+            pass
+    try:
+        proc.wait(timeout=2)
+    except Exception:
+        pass
+
+
+def _check_and_kill_face_greet_processes():
+    """清理可能残留的人脸识别进程 (SIGTERM 优先，避免相机卡死)"""
+    global face_greet_process
+    # 1. 优雅停止所有 g1_face_greet.py 实例 (含游离进程)
+    subprocess.run(['pkill', '-TERM', '-f', 'g1_face_greet.py'], capture_output=True, timeout=5)
+    # 2. 跟踪的进程：SIGTERM → 轮询等待 → 超时 SIGKILL
+    if face_greet_process:
+        _terminate_process_group(face_greet_process, timeout=10)
         face_greet_process = None
+    # 3. 兜底：仍存活的游离进程强杀
+    subprocess.run(['pkill', '-9', '-f', 'g1_face_greet.py'], capture_output=True, timeout=5)
 
 
 @app.route('/api/start_face_greet', methods=['POST'])
 def start_face_greet():
     """启动人脸识别模块 (拍照→百度识别→挥手+语音)"""
     global face_greet_running, face_greet_process, face_greet_log_thread, face_greet_log_buffer
+    global gesture_control_running  # 需要检查手势识别是否占用相机
 
     if face_greet_running:
         return jsonify({'success': False, 'message': '人脸识别模块已在运行中'}), 400
@@ -2308,18 +2350,46 @@ def face_greet_status():
 # ============================================================
 
 def _check_and_kill_gesture_control_processes():
-    """清理可能残留的手势识别进程"""
+    """清理手势识别进程 + 其他占用 RealSense 相机的进程 (SIGTERM 优先，避免相机卡死)。
+
+    解决 "xioctl(VIDIOC_S_FMT) failed, errno=16 Device or resource busy" 问题：
+    强杀正在流式传输的子进程会令 uvcvideo 不释放设备。改用 SIGTERM 让子进程
+    优雅执行 pipeline.stop()，超时再 SIGKILL 兜底。
+    """
     global gesture_control_process
-    subprocess.run(['pkill', '-9', '-f', 'g1_gesture_control.py'], capture_output=True)
-    if gesture_control_process:
+    import glob
+
+    # 1. 优雅停止已知占用脚本 (SIGTERM)
+    for script in ['g1_gesture_control.py', 'g1_face_greet.py', 'face.py']:
+        subprocess.run(['pkill', '-TERM', '-f', script], capture_output=True, timeout=5)
+
+    # 2. 优雅停止占用 /dev/video* 的进程 (SIGTERM，非默认 SIGKILL)
+    video_devices = glob.glob('/dev/video*')
+    if video_devices:
         try:
-            os.killpg(os.getpgid(gesture_control_process.pid), subprocess.signal.SIGKILL)
+            subprocess.run(
+                ['fuser', '-k', '-TERM'] + video_devices,
+                capture_output=True, text=True, timeout=5
+            )
         except Exception:
-            try:
-                os.kill(gesture_control_process.pid, subprocess.signal.SIGKILL)
-            except Exception:
-                pass
+            pass
+
+    # 3. 跟踪的 gesture_control_process：SIGTERM → 轮询等待退出 → 超时 SIGKILL 兜底
+    if gesture_control_process:
+        _terminate_process_group(gesture_control_process, timeout=10)
         gesture_control_process = None
+
+    # 4. 兜底：仍存活的游离进程强杀
+    for script in ['g1_gesture_control.py', 'g1_face_greet.py', 'face.py']:
+        subprocess.run(['pkill', '-9', '-f', script], capture_output=True, timeout=5)
+    if video_devices:
+        try:
+            subprocess.run(
+                ['fuser', '-k', '-9'] + video_devices,
+                capture_output=True, text=True, timeout=5
+            )
+        except Exception:
+            pass
 
 
 @app.route('/api/start_gesture_control', methods=['POST'])
@@ -2384,9 +2454,6 @@ def start_gesture_control():
                 print(f"[GestureControl] 日志线程异常: {e}")
             finally:
                 if gesture_control_running:
-                    # 子进程已退出（崩溃或被杀），复位运行标志，
-                    # 否则 start_gesture_control 会一直误判"已在运行中"而无法重启。
-                    gesture_control_running = False
                     socketio.emit('gesture_control_status', {
                         'status': 'stopped',
                         'message': '手势识别进程已退出'
@@ -2466,6 +2533,7 @@ def stop_gesture_control():
 @app.route('/api/gesture_control_status', methods=['GET'])
 def gesture_control_status():
     """查询手势识别模块状态"""
+    global gesture_control_running, gesture_control_process, gesture_control_log_buffer
     running = (gesture_control_running and gesture_control_process is not None
                and gesture_control_process.poll() is None)
     return jsonify({
@@ -2477,11 +2545,7 @@ def gesture_control_status():
 @app.route('/api/gesture_send_key', methods=['POST'])
 def gesture_send_key():
     """向前台运行的手势识别子进程 stdin 发送一个按键 (R/1/2/3/4/5/Q)"""
-    # 必须声明 global：下方 Q 分支会 gesture_control_running = False 赋值，
-    # 若不声明，Python 会把该变量在本函数内当作 local，导致开头那行
-    # `if not gesture_control_running` 在赋值前读取，抛 UnboundLocalError
-    # （表现为 /api/gesture_send_key 不论发什么 key 都 500）。
-    global gesture_control_running
+    global gesture_control_running, gesture_control_process
     data = request.get_json() or {}
     key = (data.get('key') or '').strip()
     if not key:
@@ -4251,6 +4315,114 @@ def execute_action(action_id):
         print(f"动作执行失败: {e}")
         return False
 
+
+
+# ==================== 小智智能体配置代理 ====================
+# APP 不直接调 xiaozhi.me，由这里转发。token 存本地 xiaozhi_auth.json。
+import xiaozhi_proxy
+
+def _agent_result(ok, data, status):
+    """统一包装 xiaozhi_proxy 的返回为 Flask 响应。"""
+    code = status if status and status >= 200 else 200
+    if ok:
+        return jsonify({"success": True, "data": data}), code
+    # data 是错误消息或错误体
+    if isinstance(data, dict):
+        return jsonify({"success": False, **data}), code
+    return jsonify({"success": False, "message": data}), code
+
+
+@app.route('/api/agent/save_token', methods=['POST'])
+def agent_save_token():
+    """用户手动粘贴 token 后保存。body: {token}。"""
+    body = request.get_json() or {}
+    token = body.get("token")
+    if not token:
+        return jsonify({"success": False, "message": "缺少 token"}), 400
+    ok, msg = xiaozhi_proxy.save_token(token)
+    return jsonify({"success": ok, "message": msg})
+
+
+@app.route('/api/agent/auth_status', methods=['GET'])
+def agent_auth_status():
+    """检查本地 token 是否有效。"""
+    ok, data, status = xiaozhi_proxy.auth_status()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/logout', methods=['POST'])
+def agent_logout():
+    """退出登录，清本地 token。"""
+    ok, data, status = xiaozhi_proxy.logout()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/select', methods=['POST'])
+def agent_select():
+    """切换当前 agent_id。body: {agent_id}。"""
+    body = request.get_json() or {}
+    aid = body.get("agent_id")
+    if not aid:
+        return jsonify({"success": False, "message": "缺少 agent_id"}), 400
+    xiaozhi_proxy.set_agent_id(str(aid))
+    return jsonify({"success": True, "agent_id": xiaozhi_proxy.get_agent_id()}), 200
+
+
+@app.route('/api/agent/list', methods=['GET'])
+def agent_list():
+    """列智能体。"""
+    ok, data, status = xiaozhi_proxy.list_agents()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/config', methods=['GET'])
+def agent_get_config():
+    """读当前智能体配置。"""
+    ok, data, status = xiaozhi_proxy.get_config()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/config', methods=['POST'])
+def agent_save_config():
+    """保存智能体配置。body: 配置 dict。"""
+    body = request.get_json() or {}
+    if not isinstance(body, dict) or not body:
+        return jsonify({"success": False, "message": "请求体为空"}), 400
+    ok, data, status = xiaozhi_proxy.save_config(body)
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/voices', methods=['GET'])
+def agent_voices():
+    """音色列表。"""
+    ok, data, status = xiaozhi_proxy.list_voices()
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/optimize_character', methods=['POST'])
+def agent_optimize_character():
+    """AI 优化人设。body: {character}。"""
+    body = request.get_json() or {}
+    char = body.get("character")
+    if not char:
+        return jsonify({"success": False, "message": "缺少 character"}), 400
+    ok, data, status = xiaozhi_proxy.optimize_character(char)
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/apply', methods=['POST'])
+def agent_apply():
+    """保存配置后重启小野 AI 让新配置生效。"""
+    try:
+        if xiaoye_running:
+            stop_xiaoye()
+            time.sleep(3)
+        start_xiaoye()
+        return jsonify({"success": True, "message": "小野 AI 已重启，新配置将在下次会话生效"})
+    except Exception as e:
+        return jsonify({"success": False, "message": f"重启失败: {e}"}), 500
+
+
 @socketio.on('connect')
 def handle_connect():
     """处理客户端连接"""
@@ -4548,22 +4720,78 @@ def on_voice_reset_arm():
 
     threading.Thread(target=do_reset, daemon=True).start()
 
+def _wait_for_network_interface(interface, timeout=60):
+    """等待网络接口可用（解决开机时 eth0 尚未就绪导致 DDS 初始化失败的问题）"""
+    import subprocess as sp
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            r = sp.run(['ip', 'link', 'show', interface],
+                       capture_output=True, text=True, timeout=5)
+            if r.returncode == 0:
+                # 接口存在，再确认是否已 UP
+                if 'state UP' in r.stdout or 'UP' in r.stdout.split('\n')[0]:
+                    return True
+                # 接口存在但未 UP，继续等待
+        except Exception:
+            pass
+        time.sleep(1)
+    return False
+
+
+def _init_sdk_with_retry(network_interface, max_attempts=120, interval=5):
+    """后台线程：持续重试 SDK 初始化，直到成功。
+
+    解决开机时 systemd 启动服务早于 eth0 就绪导致 ChannelFactoryInitialize
+    报 'eth0: does not match an available interface' 的问题。
+    Flask 服务器会立即启动（页面可访问），SDK 在 eth0 就绪后自动完成初始化。
+    """
+    # 先等网络接口就绪
+    print(f"[SDK Init] ⏳ 等待网络接口 {network_interface} 就绪...")
+    if not _wait_for_network_interface(network_interface, timeout=120):
+        print(f"[SDK Init] ⚠️ 网络接口 {network_interface} 等待超时，仍将尝试初始化...")
+
+    for attempt in range(1, max_attempts + 1):
+        if initialized:
+            return
+        print(f"[SDK Init] 第 {attempt}/{max_attempts} 次尝试初始化 SDK...")
+        try:
+            if init_clients(network_interface):
+                print(f"[SDK Init] ✅ 第 {attempt} 次尝试成功，SDK 已就绪")
+                return
+        except Exception as e:
+            print(f"[SDK Init] 第 {attempt} 次异常: {e}")
+        if attempt < max_attempts:
+            time.sleep(interval)
+
+    print(f"[SDK Init] ❌ 已达最大重试次数 {max_attempts}，SDK 仍未初始化。"
+          f"请检查网络接口/机器人状态，或手动调用 /api/init，或重启服务。")
+
+
 if __name__ == '__main__':
     import sys
-    
+
     network_interface = 'eth0'
     if len(sys.argv) > 1:
         network_interface = sys.argv[1]
-    
+
     print(f"🚀 启动Web控制服务器...")
     print(f"📡 网络接口: {network_interface}")
     print(f"🌐 访问地址: http://0.0.0.0:5000")
-    
+
     # 虚拟遥控器独立初始化（不依赖init_clients，确保始终可用）
+    # 失败也没关系，前端连接时会再次触发 virtual_remote_init
     virtual_remote_publisher.init_dds(network_interface)
-    
-    # 初始化SDK客户端
-    init_clients(network_interface)
-    
-    # 启动Flask服务器
+
+    # 初始化SDK客户端 —— 后台重试，避免开机时 eth0 未就绪导致服务假死
+    # （之前是同步调用一次，失败后 initialized 永远为 False，必须手动 restart 才能恢复）
+    sdk_init_thread = threading.Thread(
+        target=_init_sdk_with_retry,
+        args=(network_interface,),
+        daemon=True,
+        name='sdk-init-retry'
+    )
+    sdk_init_thread.start()
+
+    # 启动Flask服务器（不等待SDK初始化完成，页面可立即访问）
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, allow_unsafe_werkzeug=True)
