@@ -112,7 +112,11 @@ def _xz_request(method, path, *, token=None, json_body=None, params=None):
     token=None 时不带 Authorization。
     """
     url = XIAOZHI_BASE + path
-    headers = {"Content-Type": "application/json", "Accept": "application/json"}
+    # 只有带 body 的请求才设 Content-Type: application/json，
+    # 否则 xiaozhi(同框架) 会报 "Body cannot be empty when content-type is set to application/json"
+    headers = {"Accept": "application/json"}
+    if json_body is not None:
+        headers["Content-Type"] = "application/json"
     if token:
         headers["Authorization"] = f"Bearer {token}"
 

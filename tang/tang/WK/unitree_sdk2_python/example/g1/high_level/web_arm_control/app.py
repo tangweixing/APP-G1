@@ -4471,6 +4471,7 @@ def agent_kb_update():
 
 @app.route('/api/agent/kb/delete', methods=['GET'])
 def agent_kb_delete():
+    print("!!! DELETE ROUTE ENTERED, args=", dict(request.args), "data=", request.data, "content_type=", request.content_type, flush=True)
     """删知识库。?id=X
 
     用 GET + query param，避免 Werkzeug 2.3 对 application/json 空 body 的 400。
