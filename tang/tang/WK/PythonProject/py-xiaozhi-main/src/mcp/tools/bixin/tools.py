@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 
 async def bixin_function(args: dict) -> str:
     """
-    触发ID=2的动作（high five），拉起指定路径的g1_arm_action_example.py脚本
+    触发比心动作（ID=8），拉起指定路径的g1_arm_action_example.py脚本
     :param args: 工具调用参数（本工具无需参数，为空字典）
     :return: 执行结果文本（成功/失败信息）
     """
@@ -20,8 +20,8 @@ async def bixin_function(args: dict) -> str:
         # 网络接口（保持与机器人配置一致）
         network_interface = "eth0"
 
-        # 动作ID：2 对应“high five”
-        action_id = "2"
+        # 动作ID：8 对应“heart”（比心）
+        action_id = "8"
 
         # 执行脚本并传入参数：python3 脚本路径 网络接口 动作ID
         result = subprocess.run(
@@ -37,11 +37,11 @@ async def bixin_function(args: dict) -> str:
         print(f"[{script_path} 输出] {result.stdout.strip()}")
 
         # 记录脚本输出到日志
-        logger.info(f"ID=2动作执行输出: {result.stdout.strip()}")
+        logger.info(f"ID=8动作（比心）执行输出: {result.stdout.strip()}")
 
         # 构造返回结果
-        output = result.stdout.strip() or "ID=2动作执行成功（无输出）"
-        return f"ID=2动作（high five）执行成功：{output}"
+        output = result.stdout.strip() or "ID=8动作（比心）执行成功（无输出）"
+        return f"ID=8动作（比心）执行成功：{output}"
 
     except subprocess.CalledProcessError as e:
         error_msg = f"脚本执行失败（状态码：{e.returncode}）：{e.stderr.strip()}"

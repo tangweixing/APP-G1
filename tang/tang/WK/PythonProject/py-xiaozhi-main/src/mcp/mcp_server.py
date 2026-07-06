@@ -340,6 +340,39 @@ class McpServer:
         dijia_manager = get_dijia_manager()
         dijia_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
 
+        # 注册拜拜工具（ID=4）
+        from src.mcp.tools.baibai import get_baibai_manager
+        baibai_manager = get_baibai_manager()
+        baibai_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
+        # 注册鼓掌工具（ID=5）
+        from src.mcp.tools.guzhang import get_guzhang_manager
+        guzhang_manager = get_guzhang_manager()
+        guzhang_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
+        # 注册击掌工具（ID=2）
+        from src.mcp.tools.jizhang import get_jizhang_manager
+        jizhang_manager = get_jizhang_manager()
+        jizhang_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
+        # 注册瞭望工具（ID=9）
+        from src.mcp.tools.liaowang import get_liaowang_manager
+        liaowang_manager = get_liaowang_manager()
+        liaowang_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
+        # 注册右手抬起工具（ID=12）
+        from src.mcp.tools.youshou import get_youshou_manager
+        youshou_manager = get_youshou_manager()
+        youshou_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
+        # 注册拒绝工具（ID=13）
+        from src.mcp.tools.jujue import get_jujue_manager
+        jujue_manager = get_jujue_manager()
+        jujue_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
+        # 注册右飞吻工具（ID=14）
+        from src.mcp.tools.youfeiwen import get_youfeiwen_manager
+        youfeiwen_manager = get_youfeiwen_manager()
+        youfeiwen_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
+        # 注册双手飞吻工具（ID=15）
+        from src.mcp.tools.shuangshoufeiwen import get_shuangshoufeiwen_manager
+        shuangshoufeiwen_manager = get_shuangshoufeiwen_manager()
+        shuangshoufeiwen_manager.init_tools(self.add_tool, PropertyList, Property, PropertyType)
+
         # # 注册查看工具（响应“看一下”“有什么”）
         # from src.mcp.tools.check import get_check_manager
         # check_manager = get_check_manager()

@@ -42,7 +42,7 @@ class BixinManager:
         # 注册工具：名称、描述、参数、回调函数
         add_tool((
             "self.bixin.trigger",  # 工具名称（遵循self.module.action格式）
-            "触发比心动作，拉起mcp_bixin.py脚本",  # 工具描述
+            "触发比心动作（ID=8），拉起g1_arm_action_example.py脚本",  # 工具描述
             tool_props,  # 无参数
             bixin_function  # 关联tools.py中的工具函数
         ))

@@ -7,41 +7,42 @@ from src.utils.logging_config import get_logger
 logger = get_logger(__name__)
 
 
-async def bixin_function(args: dict) -> str:
+async def liaowang_function(args: dict) -> str:
     """
-    触发比心动作（ID=8），拉起指定路径的g1_arm_action_example.py脚本
+    触发瞭望动作（ID=9），拉起指定路径的g1_arm_action_example.py脚本
+    对应动作：right heart（瞭望）
     :param args: 工具调用参数（本工具无需参数，为空字典）
     :return: 执行结果文本（成功/失败信息）
     """
     try:
-        # 目标脚本的绝对路径（与原路径一致）
+        # 目标脚本的绝对路径
         script_path = r"/home/unitree/tang/WK/unitree_sdk2_python/example/g1/high_level/g1_arm_action_example.py"
 
         # 网络接口（保持与机器人配置一致）
         network_interface = "eth0"
 
-        # 动作ID：8 对应“heart”（比心）
-        action_id = "8"
+        # 动作ID：9 对应"瞭望"
+        action_id = "9"
 
-        # 执行脚本并传入参数：python3 脚本路径 网络接口 动作ID
+        # 执行脚本并传入参数
         result = subprocess.run(
-            ["/usr/bin/python3", script_path, network_interface, action_id],  # 调用Python3解释器并传入参数
-            capture_output=True,  # 捕获标准输出和错误输出
-            text=True,  # 以文本模式处理输出
-            check=True,  # 若脚本执行返回非0状态码，会抛出异常
-            encoding="utf-8",  # 使用UTF-8编码解码输出
-            errors="ignore"  # 忽略无法解码的字符
+            ["/usr/bin/python3", script_path, network_interface, action_id],
+            capture_output=True,
+            text=True,
+            check=True,
+            encoding="utf-8",
+            errors="ignore"
         )
 
         # 打印脚本输出到控制台
         print(f"[{script_path} 输出] {result.stdout.strip()}")
 
         # 记录脚本输出到日志
-        logger.info(f"ID=8动作（比心）执行输出: {result.stdout.strip()}")
+        logger.info(f"ID=9动作（瞭望）执行输出: {result.stdout.strip()}")
 
         # 构造返回结果
-        output = result.stdout.strip() or "ID=8动作（比心）执行成功（无输出）"
-        return f"ID=8动作（比心）执行成功：{output}"
+        output = result.stdout.strip() or f"ID=9动作（瞭望）执行成功（无输出）"
+        return f"ID=9动作（瞭望）执行成功：{output}"
 
     except subprocess.CalledProcessError as e:
         error_msg = f"脚本执行失败（状态码：{e.returncode}）：{e.stderr.strip()}"
