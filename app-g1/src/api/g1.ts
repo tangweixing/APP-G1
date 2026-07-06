@@ -323,6 +323,28 @@ export function agentKnowledgeBases() {
   return request({ url: '/api/agent/knowledge_bases' })
 }
 
+/* ========== 知识库管理（CRUD）========== */
+
+/** 知识库分页列表 */
+export function kbList(page: number = 1, pageSize: number = 10) {
+  return request({ url: `/api/agent/kb/list?page=${page}&pageSize=${pageSize}` })
+}
+
+/** 创建知识库 */
+export function kbCreate(name: string, description: string = '') {
+  return request({ url: '/api/agent/kb/create', method: 'POST', data: { name, description } })
+}
+
+/** 改知识库 */
+export function kbUpdate(id: number, name: string, description: string = '') {
+  return request({ url: '/api/agent/kb/update', method: 'POST', data: { id, name, description } })
+}
+
+/** 删知识库 */
+export function kbDelete(id: number) {
+  return request({ url: '/api/agent/kb/delete', method: 'POST', data: { id } })
+}
+
 /** AI 优化人设 */
 export function agentOptimizeCharacter(character: string) {
   return request({ url: '/api/agent/optimize_character', method: 'POST', data: { character } })
@@ -372,6 +394,10 @@ export default {
   agentTemplates,
   agentMcpTools,
   agentKnowledgeBases,
+  kbList,
+  kbCreate,
+  kbUpdate,
+  kbDelete,
   agentOptimizeCharacter,
   agentApply,
   getDefaultServerIp,

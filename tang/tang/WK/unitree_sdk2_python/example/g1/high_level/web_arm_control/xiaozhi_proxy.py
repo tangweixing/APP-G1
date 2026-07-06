@@ -325,6 +325,62 @@ def list_knowledge_bases():
     return True, {"items": items}, status
 
 
+# ==================== 知识库管理（CRUD）====================
+def list_knowledge_bases_page(page=1, page_size=10):
+    """GET /api/knowledge-bases?page=&pageSize=，分页列表。
+
+    返回 {data:{list:[...], pagination}}。
+    """
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    ok, data, status = _xz_request("GET", "/knowledge-bases", token=token,
+                                   params={"page": page, "pageSize": page_size})
+    if not ok:
+        return False, data, status
+    d = data.get("data") if isinstance(data, dict) else data
+    if not isinstance(d, dict):
+        d = {"list": [], "pagination": {}}
+    return True, d, status
+
+
+def create_knowledge_base(name, description="", status=1):
+    """POST /api/knowledge-bases，创建知识库。"""
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    ok, data, status = _xz_request("POST", "/knowledge-bases", token=token,
+                                   json_body={"name": name, "description": description, "status": status})
+    if not ok:
+        return False, data, status
+    return True, data, status
+
+
+def update_knowledge_base(kb_id, name, description="", status=1):
+    """PUT /api/knowledge-bases，改名/改描述。"""
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    ok, data, status = _xz_request("PUT", "/knowledge-bases", token=token,
+                                   json_body={"id": kb_id, "name": name,
+                                              "description": description, "status": status})
+    if not ok:
+        return False, data, status
+    return True, data, status
+
+
+def delete_knowledge_base(kb_id):
+    """DELETE /api/knowledge-bases?id=X。"""
+    token = _get_token()
+    if not token:
+        return False, "未登录", 401
+    ok, data, status = _xz_request("DELETE", "/knowledge-bases", token=token,
+                                   params={"id": kb_id})
+    if not ok:
+        return False, data, status
+    return True, data, status
+
+
 def optimize_character(character_text):
     """POST /api/agents/optimize-character，AI 优化人设。"""
     token = _get_token()

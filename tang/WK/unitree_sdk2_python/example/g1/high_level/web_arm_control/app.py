@@ -4434,6 +4434,52 @@ def agent_knowledge_bases():
     return _agent_result(ok, data, status)
 
 
+# ==================== 知识库管理（CRUD）====================
+@app.route('/api/agent/kb/list', methods=['GET'])
+def agent_kb_list():
+    """知识库分页列表。?page=&pageSize="""
+    page = int(request.args.get("page", 1))
+    page_size = int(request.args.get("pageSize", 10))
+    ok, data, status = xiaozhi_proxy.list_knowledge_bases_page(page, page_size)
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/kb/create', methods=['POST'])
+def agent_kb_create():
+    """创建知识库。body: {name, description}"""
+    body = request.get_json() or {}
+    name = body.get("name")
+    if not name:
+        return jsonify({"success": False, "message": "缺少 name"}), 400
+    desc = body.get("description", "")
+    ok, data, status = xiaozhi_proxy.create_knowledge_base(name, desc)
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/kb/update', methods=['POST'])
+def agent_kb_update():
+    """改知识库。body: {id, name, description}"""
+    body = request.get_json() or {}
+    kb_id = body.get("id")
+    name = body.get("name")
+    if not kb_id or not name:
+        return jsonify({"success": False, "message": "缺少 id 或 name"}), 400
+    desc = body.get("description", "")
+    ok, data, status = xiaozhi_proxy.update_knowledge_base(kb_id, name, desc)
+    return _agent_result(ok, data, status)
+
+
+@app.route('/api/agent/kb/delete', methods=['POST'])
+def agent_kb_delete():
+    """删知识库。body: {id}"""
+    body = request.get_json() or {}
+    kb_id = body.get("id")
+    if not kb_id:
+        return jsonify({"success": False, "message": "缺少 id"}), 400
+    ok, data, status = xiaozhi_proxy.delete_knowledge_base(kb_id)
+    return _agent_result(ok, data, status)
+
+
 @app.route('/api/agent/optimize_character', methods=['POST'])
 def agent_optimize_character():
     """AI 优化人设。body: {character}。"""

@@ -104,8 +104,7 @@
 						</picker>
 					</view>
 
-					<!-- 高级设置 -->
-					<view class="section-divider">高级设置</view>
+					<!-- 高级设置项（无分隔栏，直接接在语速后） -->
 
 					<view class="form-row">
 						<text class="label">记忆开关</text>
@@ -131,7 +130,10 @@
 					</view>
 
 					<view class="form-row form-col">
-						<text class="label">知识库</text>
+						<view class="label-row">
+							<text class="label">知识库</text>
+							<button class="btn-config-kb" @click="goKbManage">配置</button>
+						</view>
 						<view class="checkbox-group">
 							<view v-for="(k, i) in kbOptions" :key="i" class="checkbox-item" @click="toggleKb(k.value)">
 								<view class="checkbox-box" :class="{ checked: isSelected(kbSelected, k.value) }">{{ isSelected(kbSelected, k.value) ? '✓' : '' }}</view>
@@ -260,6 +262,17 @@ export default Vue.extend({
 	onShow: function() {
 		// 已登录但还没拉配置时补拉
 		if (this.loggedIn && !this.config) this.loadConfig();
+		// 从知识库管理页返回时，刷新知识库选项（用户可能新建/删除了）
+		if (this.loggedIn && this.config) {
+			var self = this;
+			g1Api.agentKnowledgeBases().then(function(r) {
+				if (r.success && r.data && r.data.items) {
+					self.kbOptions = r.data.items.map(function(k) {
+						return { label: k.name, value: k.id };
+					});
+				}
+			}).catch(function() {});
+		}
 	},
 
 	methods: {
@@ -267,6 +280,11 @@ export default Vue.extend({
 			var pages = getCurrentPages();
 			if (pages.length > 1) { uni.navigateBack(); }
 			else { uni.reLaunch({ url: '/pages/index/index' }); }
+		},
+
+		goKbManage: function() {
+			// 跳到知识库管理页（从配置页改完知识库后回来要刷新选项）
+			uni.navigateTo({ url: '/pages/kb/kb' });
 		},
 
 		init: function() {
@@ -681,6 +699,8 @@ export default Vue.extend({
 .pitch-slider{flex:1;margin:0 8px}
 
 .section-divider{font-size:13px;color:#9af;font-weight:600;margin:18px 0 10px;padding:6px 0;border-top:1px solid #333;border-bottom:1px solid #333}
+.label-row{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:4px}
+.btn-config-kb{background:#2a4a7a;color:#fff;border:none;border-radius:6px;font-size:11px;padding:3px 12px;line-height:1.6}
 .switch-hint{margin-left:10px;font-size:12px;color:#888}
 .checkbox-group{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;width:100%}
 .checkbox-item{display:flex;align-items:center;background:#1a1a2e;border:1px solid #444;border-radius:6px;padding:8px 12px;margin-right:6px;margin-bottom:6px}

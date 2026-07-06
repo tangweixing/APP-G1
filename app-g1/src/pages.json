@@ -29,6 +29,13 @@
 			}
 		},
 		{
+			"path": "pages/kb/kb",
+			"style": {
+				"navigationBarTitleText": "知识库管理",
+				"navigationStyle": "custom"
+			}
+		},
+		{
 			"path": "pages/voice/voice",
 			"style": {
 				"navigationBarTitleText": "语音动作输出",
