@@ -151,6 +151,19 @@
 import Vue from 'vue';
 import * as g1Api from '../../api/g1';
 
+// 语言代码 → 中文显示名（全中文，跟控制台 i18n 一致）
+// 放模块级常量，避免 Vue 实例访问时机问题
+var LANG_NAMES = {
+	zh: '中文', en: '英语', ja: '日语', yue: '粤语', vi: '越南语',
+	fr: '法语', ar: '阿拉伯语', es: '西班牙语', ru: '俄语', ko: '韩语',
+	it: '意大利语', id: '印尼语', hi: '印地语', fi: '芬兰语', th: '泰语',
+	de: '德语', pt: '葡萄牙语', uk: '乌克兰语', tr: '土耳其语', cs: '捷克语',
+	pl: '波兰语', ro: '罗马尼亚语', ms: '马来语', sl: '斯洛文尼亚语', nl: '荷兰语',
+	bg: '保加利亚语', da: '丹麦语', he: '希伯来语', sk: '斯洛伐克语', sv: '瑞典语',
+	hr: '克罗地亚语', hu: '匈牙利语', ca: '加泰罗尼亚语', fa: '波斯语', el: '希腊语',
+	no: '挪威语', fil: '菲律宾语',
+};
+
 export default Vue.extend({
 	data: function() {
 		return {
@@ -234,17 +247,7 @@ export default Vue.extend({
 			});
 		},
 
-		// 语言代码 → 中文显示名（全中文，跟控制台 i18n 一致）
-		LANG_NAMES: {
-			zh: '中文', en: '英语', ja: '日语', yue: '粤语', vi: '越南语',
-			fr: '法语', ar: '阿拉伯语', es: '西班牙语', ru: '俄语', ko: '韩语',
-			it: '意大利语', id: '印尼语', hi: '印地语', fi: '芬兰语', th: '泰语',
-			de: '德语', pt: '葡萄牙语', uk: '乌克兰语', tr: '土耳其语', cs: '捷克语',
-			pl: '波兰语', ro: '罗马尼亚语', ms: '马来语', sl: '斯洛文尼亚语', nl: '荷兰语',
-			bg: '保加利亚语', da: '丹麦语', he: '希伯来语', sk: '斯洛伐克语', sv: '瑞典语',
-			hr: '克罗地亚语', hu: '匈牙利语', ca: '加泰罗尼亚语', fa: '波斯语', el: '希腊语',
-			no: '挪威语', fil: '菲律宾语',
-		},
+		// 语言代码 → 中文显示名见模块级 LANG_NAMES 常量
 
 		// ===== 拉取选项（语言/模型/音色，跟控制台一致）=====
 		loadOptions: function() {
@@ -262,7 +265,7 @@ export default Vue.extend({
 				if (r.success && r.data) {
 					var langs = r.data.languages || [];
 					self.languageOptions = langs.map(function(code) {
-						return { label: self.LANG_NAMES[code] || code, value: code };
+						return { label: LANG_NAMES[code] || code, value: code };
 					});
 					self.ttsVoices = r.data.tts_voices || {};
 				}
